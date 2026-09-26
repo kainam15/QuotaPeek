@@ -28,6 +28,9 @@ public partial class MainWindow : Window
     private bool dragMoved, dragExpands;
     private string unlock = "托盘菜单";
     private bool rendered, positioned, loaded, dockMode;
+    private List<CardViewModel> capsuleCards = [];
+    private string? selectedProviderId, displayedProviderId;
+    private int capsuleWheelDelta;
 
     public MainWindow(App app)
     {
@@ -46,6 +49,8 @@ public partial class MainWindow : Window
         tray.ContextMenuStrip = menu;
         tray.DoubleClick += (_, _) => Dispatcher.Invoke(() => { userHidden = false; SetExpanded(true); UpdateVisibility(); });
         taskbar.View.ToggleRequested += () => SetExpanded(!expanded);
+        taskbar.View.PreviewMouseWheel += (_, e) => CycleCapsule(e);
+        taskbar.View.MouseLeave += Capsule_MouseLeave;
         taskbar.View.UndockRequested += () => SetTaskbarDocked(false);
         taskbar.View.SettingsRequested += app.OpenSettings;
         taskbar.View.RefreshRequested += async () => await app.Monitor.RefreshAsync(true);
@@ -110,19 +115,54 @@ public partial class MainWindow : Window
             .Select(p => new CardViewModel(p, app.Monitor.Snapshots.GetValueOrDefault(p.Id), app.Monitor.History(p.Id))).ToList();
         Cards.ItemsSource = cards;
         EmptyText.Visibility = cards.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
-        var priority = cards.OrderBy(c => c.Snapshot?.HasValue == true ? 0 : 1)
-            .ThenBy(c => c.Snapshot?.Status == SnapshotStatus.Stale ? 0 : 1)
-            .ThenBy(c => c.Snapshot?.Windows.Count > 0 ? (double)(c.Snapshot.Windows.Min(w => w.RemainingPercent) / Math.Max(1, c.Config.LowThreshold))
-                : c.Snapshot?.Remaining is { } money ? (double)(money / Math.Max(0.01m, c.Config.LowThreshold)) : double.MaxValue).FirstOrDefault();
-        CapsuleText.Text = priority is null ? "QuotaPeek · 添加账户" : priority.Name + "  " + priority.PrimaryValue;
-        if (priority is not null) CapsuleDot.Fill = priority.StatusBrush;
+        capsuleCards = cards;
+        RenderCapsule();
         var tooltip = string.Join("\n", cards.Select(c => c.Name + " " + c.PrimaryValue + " · " + c.StatusText));
-        taskbar.View.Update(priority?.Name ?? "QuotaPeek", priority?.PrimaryValue ?? "添加账户", CapsuleDot.Fill, tooltip);
         tray.Text = tooltip.Length > 120 ? tooltip[..120] : tooltip.Length == 0 ? "QuotaPeek" : tooltip;
         FooterText.Text = app.Monitor.Demo ? "演示数据 · 仅用于预览" : locked ? "已锁定 · " + unlock + " 解锁" : app.Monitor.Paused ? "暂停刷新" : app.Monitor.IsRefreshing ? "正在同步…" : app.Monitor.Warning ?? "自动刷新 · 数据保存在本机";
         RefreshButton.IsEnabled = !app.Monitor.IsRefreshing;
         if (previous is { } position) { UpdateLayout(); WindowNative.Position(this, position.X, position.Y); }
         if (dockMode) UpdateVisibility();
+    }
+
+    private void RenderCapsule()
+    {
+        var selected = capsuleCards.FirstOrDefault(c => c.Config.Id == selectedProviderId);
+        // Keep manual selection across refreshes; fall back if its source was disabled or removed.
+        if (selected is null) selectedProviderId = null;
+        var current = selected ?? capsuleCards.OrderBy(c => c.Snapshot?.HasValue == true ? 0 : 1)
+            .ThenBy(c => c.Snapshot?.Status == SnapshotStatus.Stale ? 0 : 1)
+            .ThenBy(c => c.Snapshot?.Windows.Count > 0 ? (double)(c.Snapshot.Windows.Min(w => w.RemainingPercent) / Math.Max(1, c.Config.LowThreshold))
+                : c.Snapshot?.Remaining is { } money ? (double)(money / Math.Max(0.01m, c.Config.LowThreshold)) : double.MaxValue).FirstOrDefault();
+        displayedProviderId = current?.Config.Id;
+        CapsuleText.Text = current is null ? "QuotaPeek · 添加账户" : current.Name + "  " + current.PrimaryValue;
+        CapsuleDot.Fill = current?.StatusBrush ?? (System.Windows.Media.Brush)FindResource("Mint");
+        var tooltip = string.Join("\n", capsuleCards.Select(c => c.Name + " " + c.PrimaryValue + " · " + c.StatusText));
+        Capsule.ToolTip = tooltip + "\n滚轮切换钱包 / 额度 · 单击展开 · " + (dockMode ? "右键切换显示方式" : "按住拖动");
+        taskbar.View.Update(current?.Name ?? "QuotaPeek", current?.PrimaryValue ?? "添加账户", CapsuleDot.Fill, tooltip);
+    }
+
+    private void Capsule_MouseWheel(object sender, MouseWheelEventArgs e)
+    {
+        if (!expanded) CycleCapsule(e);
+    }
+
+    private void Capsule_MouseLeave(object sender, MouseEventArgs e) => capsuleWheelDelta = 0;
+
+    private void CycleCapsule(MouseWheelEventArgs e)
+    {
+        if (locked || dragFrom is not null || capsuleCards.Count < 2 || e.Delta == 0) return;
+        e.Handled = true;
+        // Precision wheels can send fractions of a notch. Never jump for each tiny delta.
+        if (Math.Sign(capsuleWheelDelta) != Math.Sign(e.Delta)) capsuleWheelDelta = 0;
+        capsuleWheelDelta += e.Delta;
+        var steps = capsuleWheelDelta / Mouse.MouseWheelDeltaForOneLine;
+        capsuleWheelDelta %= Mouse.MouseWheelDeltaForOneLine;
+        if (steps == 0) return;
+        var index = Math.Max(0, capsuleCards.FindIndex(c => c.Config.Id == displayedProviderId));
+        index = ((index - steps) % capsuleCards.Count + capsuleCards.Count) % capsuleCards.Count;
+        selectedProviderId = capsuleCards[index].Config.Id;
+        RenderCapsule();
     }
 
     private void NotifyLow(ProviderConfig config, QuotaSnapshot snapshot)
@@ -145,6 +185,7 @@ public partial class MainWindow : Window
         if (locked && value) return;
         FinishDrag();
         expanded = value;
+        capsuleWheelDelta = 0;
         void Resize() { Width = value ? 370 : 252; Expanded.Visibility = value ? Visibility.Visible : Visibility.Collapsed; Capsule.Visibility = value ? Visibility.Collapsed : Visibility.Visible; }
         if (positioned && !dockMode) WindowNative.ResizeAnchored(this, Resize); else { Resize(); UpdateLayout(); }
         if (remember && !dockMode)
@@ -186,7 +227,7 @@ public partial class MainWindow : Window
         FinishDrag();
         if (value) SavePosition();
         dockMode = value;
-        Capsule.ToolTip = value ? "单击展开 · 右键切换显示方式" : "单击展开 · 按住拖动";
+        RenderCapsule();
         taskbar.SetEnabled(value);
         SetExpanded(!value && app.Monitor.Settings.StartExpanded, false);
         if (!value) WindowNative.Position(this, app.Monitor.Settings.LeftPixels, app.Monitor.Settings.TopPixels);

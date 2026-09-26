@@ -61,6 +61,12 @@ SQLite 保存规范化快照与阈值状态；UI 只拿规范化模型。失败�
 
 参考 [.NET single-file 部署文档](https://learn.microsoft.com/en-us/dotnet/core/deploying/single-file/overview) 与 [dotnet/designs 的 single-file 设计](https://github.com/dotnet/designs/blob/main/accepted/2020/single-file/design.md)。对相同应用实测：压缩程序集直接从 bundle 加载时工作集约 309 MiB，改成 `IncludeAllContentForSelfExtract=true` 后约 166 MiB，私有内存由约 183 MiB 降到 97 MiB。因此保留压缩便携 EXE，但首次启动解压全部内容，由运行库从文件加载。短时数据不等于全天性能保证。
 
+## 2026-09-26 胶囊滚轮切换
+
+- [WPF HwndMouseInputProvider 源码](https://github.com/dotnet/wpf/blob/main/src/Microsoft.DotNet.Wpf/src/PresentationCore/System/Windows/InterOp/HwndMouseInputProvider.cs) 将原生 `WM_MOUSEWHEEL` 转为 WPF 鼠标输入。浮动胶囊外层与任务栏 UserControl 使用 `PreviewMouseWheel`，覆盖文字、圆点、内边距和菜单按钮；只有收起的浮动胶囊处理切换，展开卡片的 ScrollViewer 保留自己的滚动。
+- [WPF Issue #5936](https://github.com/dotnet/wpf/issues/5936) 提醒不能把每一个小幅 Delta 都当成一步，否则触控板会跳得过快。依据 [WM_MOUSEWHEEL 文档](https://learn.microsoft.com/en-us/windows/win32/inputdev/wm-mousewheel) 累计至 120 再切换，保留余量；反向、离开胶囊和展开 / 收起时清除不完整手势。
+- 手动选择以数据源 ID 保存在本次运行中，独立于每次刷新重建的卡片对象；仍按设置中的已启用顺序循环。启动时沿用原来的低额度优先，所选源被停用或移除时安全回退。滚动仅更新胶囊显示，不重新请求额度、查询历史、保存配置或抢占焦点。
+
 ## 2026-09-26 胶囊拖动
 
 - [WPF ButtonBase 源码](https://github.com/dotnet/wpf/blob/main/src/Microsoft.DotNet.Wpf/src/PresentationFramework/System/Windows/Controls/Primitives/ButtonBase.cs)：按钮会处理鼠标按下并捕获鼠标。原胶囊的余额区域是展开按钮，只有右侧文字图标绑定拖动；直接拖余额不会移动窗口。改为外层 Preview 事件统一处理，展开按钮的普通单击仍保留，设置、刷新、收起按钮和滚动条排除在拖动区域之外。

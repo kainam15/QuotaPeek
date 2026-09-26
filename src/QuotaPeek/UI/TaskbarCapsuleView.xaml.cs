@@ -20,7 +20,7 @@ public partial class TaskbarCapsuleView : UserControl
         ProviderText.Text = name;
         BalanceText.Text = value;
         StatusDot.Fill = status;
-        ToolTip = tooltip + "\n单击展开 / 收起 · 右键打开菜单";
+        ToolTip = tooltip + "\n滚轮切换钱包 / 额度 · 单击展开 / 收起 · 右键打开菜单";
     }
 
     private void Expand_Click(object sender, RoutedEventArgs e) => ToggleRequested?.Invoke();
