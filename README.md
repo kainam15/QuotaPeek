@@ -9,7 +9,7 @@
 1. 打开组件右上角的设置，选择 **Hone API**，粘贴 API key，点击“测试连接”并保存。默认地址是 `https://hone.vvvv.ee`。这里是 key / 兼容账单，不一定是账户钱包。
    要显示**钱包剩余**，点击“＋ 连接钱包余额”，在 **Hone 钱包** 中填写网站「安全与访问」里的**账户访问令牌**，测试后保存。钱包会单独显示账户余额和账户累计消费；原 API key 保留在原数据源中。普通 API key 无法代替账户访问令牌。可以通过 `dist\QuotaPeek.exe --settings` 启动并打开设置。
 2. **Codex** 自动查找本机 Codex，并复用它已有的 ChatGPT 登录。读取官方 app-server 的 `account/rateLimits/read`；不创建会话、不发模型请求，不复制登录 token。若找不到程序，可在设置中填写 `codex.exe` 完整路径。
-3. 点击向上箭头收成胶囊；悬停临时展开，单击保持展开。拖动顶部标题区 / 胶囊右侧握柄调整位置。
+3. 点击向上箭头收成胶囊；悬停临时展开，单击文字保持展开。按住胶囊任意位置（包括余额文字、圆点、空白处和右侧握柄）即可拖动；展开后也可拖动标题和卡片空白区域。拖动时保持当前形态，松手自动记住位置。
 4. 锁定后鼠标穿透。用 **Ctrl+Alt+Q** 解锁；如冲突则尝试 **Ctrl+Alt+Shift+Q**，实际快捷键在锁定按钮提示中显示。托盘菜单始终可以解锁、刷新、设置、隐藏和退出。
 
 初次启动展开以便连接账户，之后记住收起状态和位置。开机自启默认关闭，需要在设置中主动开启。
@@ -74,6 +74,7 @@ python tools\probe_codex.py --exe C:\path\to\codex.exe
 python -m pip install pywinauto Pillow
 python tests\desktop_smoke.py --exe dist\QuotaPeek.exe
 python tests\desktop_smoke.py --exe dist\QuotaPeek.exe --live
+python tests\drag_smoke.py --exe dist\QuotaPeek.exe
 ```
 
 测试每次使用独立数据目录，不覆盖正常账户。`--demo` 仅用演示数据，不联网；`--data-dir` 可隔离设置与凭据命名空间；`--render` 输出 WPF 渲染图用于视觉检查，不能单独证明物理输入正常。

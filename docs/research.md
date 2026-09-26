@@ -51,3 +51,9 @@ SQLite 保存规范化快照与阈值状态；UI 只拿规范化模型。失败�
 ## 打包内存
 
 参考 [.NET single-file 部署文档](https://learn.microsoft.com/en-us/dotnet/core/deploying/single-file/overview) 与 [dotnet/designs 的 single-file 设计](https://github.com/dotnet/designs/blob/main/accepted/2020/single-file/design.md)。对相同应用实测：压缩程序集直接从 bundle 加载时工作集约 309 MiB，改成 `IncludeAllContentForSelfExtract=true` 后约 166 MiB，私有内存由约 183 MiB 降到 97 MiB。因此保留压缩便携 EXE，但首次启动解压全部内容，由运行库从文件加载。短时数据不等于全天性能保证。
+
+## 2026-09-26 胶囊拖动
+
+- [WPF ButtonBase 源码](https://github.com/dotnet/wpf/blob/main/src/Microsoft.DotNet.Wpf/src/PresentationFramework/System/Windows/Controls/Primitives/ButtonBase.cs)：按钮会处理鼠标按下并捕获鼠标。原胶囊的余额区域是展开按钮，只有右侧文字图标绑定拖动；直接拖余额不会移动窗口。改为外层 Preview 事件统一处理，展开按钮的普通单击仍保留，设置、刷新、收起按钮和滚动条排除在拖动区域之外。
+- [Eto 的 WPF 窗口实现](https://github.com/picoe/Eto/blob/develop/src/Eto.Wpf/Forms/WpfWindow.cs)、[Issue #1903](https://github.com/picoe/Eto/issues/1903)、[PR #2108](https://github.com/picoe/Eto/pull/2108)：参考交互控件与窗口拖动分离、鼠标捕获需要可靠清理的经验。QuotaPeek 保留原有不激活窗口的像素定位方式；按下、拖动、松开及捕获丢失由同一外层元素处理，不引入框架依赖。
+- 使用 Windows 的最小拖动距离并按窗口 DPI 换算到物理像素，区分单击抖动和真正拖动。按住时暂停悬停计时器，防止胶囊在拖动中变成大卡片；松手后不立即重新触发展开，移出再悬停仍可预览。

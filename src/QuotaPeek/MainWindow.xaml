@@ -2,21 +2,22 @@
         Title="QuotaPeek" Width="370" SizeToContent="Height" WindowStyle="None" AllowsTransparency="True" Background="Transparent" ResizeMode="NoResize"
         Topmost="True" ShowInTaskbar="False" ShowActivated="False" UseLayoutRounding="True" FontFamily="Segoe UI, Microsoft YaHei UI" FontSize="12" Foreground="{StaticResource Text}">
   <Border x:Name="Outer" Margin="8" CornerRadius="20" Background="{StaticResource Canvas}" BorderBrush="{StaticResource Line}" BorderThickness="1"
-          MouseEnter="Root_MouseEnter" MouseLeave="Root_MouseLeave">
+          MouseEnter="Root_MouseEnter" MouseLeave="Root_MouseLeave"
+          PreviewMouseLeftButtonDown="DragStart" PreviewMouseMove="DragMove" PreviewMouseLeftButtonUp="DragEnd" LostMouseCapture="DragLostCapture">
     <Border.Effect><DropShadowEffect Color="#000000" BlurRadius="12" ShadowDepth="2" Opacity="0.26"/></Border.Effect>
     <Border.ContextMenu><ContextMenu><MenuItem Header="设置" Click="Settings_Click"/><MenuItem Header="刷新" Click="Refresh_Click"/><MenuItem Header="锁定 / 解锁鼠标穿透" Click="Lock_Click"/><Separator/><MenuItem Header="退出 QuotaPeek" Click="Exit_Click"/></ContextMenu></Border.ContextMenu>
     <Grid>
-      <Grid x:Name="Capsule" Visibility="Collapsed" Height="48" Margin="12,0,10,0">
+      <Grid x:Name="Capsule" Visibility="Collapsed" Height="48" Margin="12,0,10,0" Background="Transparent" ToolTip="按住拖动 · 单击文字展开">
         <Grid.ColumnDefinitions><ColumnDefinition Width="20"/><ColumnDefinition Width="*"/><ColumnDefinition Width="26"/></Grid.ColumnDefinitions>
         <Ellipse x:Name="CapsuleDot" Width="7" Height="7" Fill="{StaticResource Mint}"/>
         <Button x:Name="ExpandButton" Grid.Column="1" Background="Transparent" Padding="3,0" Click="Expand_Click" AutomationProperties.Name="展开额度卡片">
           <TextBlock x:Name="CapsuleText" FontWeight="SemiBold" Text="QuotaPeek" FontSize="13" TextTrimming="CharacterEllipsis"/>
         </Button>
         <TextBlock Grid.Column="2" FontFamily="Segoe MDL2 Assets" Text="&#xE700;" FontSize="13" Foreground="{StaticResource Muted}" VerticalAlignment="Center" HorizontalAlignment="Right"
-                   ToolTip="拖动组件" MouseLeftButtonDown="DragStart" MouseMove="DragMove" MouseLeftButtonUp="DragEnd"/>
+                   ToolTip="拖动组件"/>
       </Grid>
       <StackPanel x:Name="Expanded" Margin="18,15,18,14">
-        <Grid x:Name="DragHeader" Margin="0,0,0,14" Background="Transparent" MouseLeftButtonDown="DragStart" MouseMove="DragMove" MouseLeftButtonUp="DragEnd">
+        <Grid x:Name="DragHeader" Margin="0,0,0,14" Background="Transparent">
           <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
           <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
             <Border Background="{StaticResource Mint}" CornerRadius="9" Width="30" Height="30" Margin="0,0,9,0"><TextBlock Text="Q" Foreground="#15231D" FontSize="20" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center"/></Border>
