@@ -3,7 +3,5 @@
     {
       "file": ".github/commit-message.instructions.md"
     }
-  ],
-  "gitlens.ai.generateCommitMessage.customInstructions": "生成 QuotaPeek 的 Git 提交信息，遵循 Conventional Commits。只输出一条完整提交消息，不加解释、代码块、引号或 emoji。标题格式为 type(scope): 中文简述，scope 可省略，标题不超过 72 个字符且末尾不加句号。描述和正文使用简体中文，保留英文专有名词和代码标识符。type 和 scope 使用小写英文；type 仅限 feat、fix、refactor、perf、test、docs、ci、build、chore、style、revert。scope 按实际影响选择，例如 app、ui、core、providers、codex、hone、storage、credentials、build、tests、docs、repo。style 仅用于代码格式调整，不用于 UI 功能修改。只依据本次提供的 diff 描述实际改动，不照搬历史提交的不规范格式；首次实现应用功能用 feat(app)，仓库生成规则配置用 chore(repo)。标题写具体动作及作用，简单改动只写标题，必要时空一行补充原因和影响，可用 2–5 条列表。正文及 footer 前各空一行，不强制限制其单行长度。仅在确有不兼容变更时使用 ! 和 BREAKING CHANGE: 并说明迁移方式；不虚构 Issue、功能、测试结果或性能数据，不输出凭据。示例：feat(app): 实现 QuotaPeek 桌面额度监控组件",
-  "git.inputValidationSubjectLength": 72
+  ]
 }
