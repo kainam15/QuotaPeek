@@ -78,4 +78,4 @@ SQLite 保存规范化快照与阈值状态；UI 只拿规范化模型。失败�
 
 - 参考 [PowerToys 的 PowerLauncher.csproj](https://github.com/microsoft/PowerToys/blob/main/src/modules/launcher/PowerLauncher/PowerLauncher.csproj)，将同一 ICO 同时设为 `ApplicationIcon` 和 WPF `Resource`，覆盖 EXE、窗口与托盘；单文件发布后无需在程序旁放置图片。
 - [WPF Window 源码](https://github.com/dotnet/wpf/blob/main/src/Microsoft.DotNet.Wpf/src/PresentationFramework/System/Windows/Window.cs) 明确窗口图标优先使用 `Window.Icon`；这里显式引用内嵌资源。[WinForms Issue #8929](https://github.com/dotnet/winforms/issues/8929) 与 [PR #8983](https://github.com/dotnet/winforms/pull/8983) 说明 ICO 尺寸选择与原生图标提取的边界。托盘直接按系统小图标尺寸读取内嵌 ICO，并在退出时释放。
-- 保留根目录 `logo.png` 原图；`tools/update-logo.ps1` 按原比例生成 16–256 px 共九种尺寸的 ICO 和 README 预览。沿用界面的薄荷绿底色，保证黑色图案在深浅背景上可见。README 明确说明 Logo 仅作临时使用，并非本项目作者本人设计。
+- README 和界面直接使用根目录 `logo.png` 原图，不添加背景色；`tools/update-logo.ps1` 仅按原比例生成 16–256 px 共九种尺寸的 ICO，保留透明背景。README 明确说明 Logo 仅作临时使用，并非本项目作者本人设计。

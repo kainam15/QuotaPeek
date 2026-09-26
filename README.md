@@ -1,7 +1,7 @@
 # QuotaPeek
 
 <p align="center">
-  <img src="docs/images/logo.png" alt="QuotaPeek 临时 Logo" width="128" height="128">
+  <img src="logo.png" alt="QuotaPeek 临时 Logo" width="128">
 </p>
 
 > **Logo 说明：** 当前使用的 [Logo](logo.png) 仅作临时使用，并非本项目作者本人设计。
@@ -56,7 +56,7 @@ Codex 的剩余百分比与现金余额独立显示，不能换算成美元。�
 
 需要 **.NET 10 SDK** 和 Windows。脚本依次查找 `-DotnetPath`、`QUOTAPEEK_DOTNET`、`.tools\dotnet\dotnet.exe`、本机已有 AltTabLock SDK，最后使用 PATH。
 
-根目录 `logo.png` 是 Logo 原图。替换后运行 `powershell -NoProfile -File tools\update-logo.ps1`，重新生成 EXE / 窗口 / 托盘使用的多尺寸 ICO 和 README 预览；图标沿用薄荷绿底色以适配深浅背景，原图保持不变。
+README 和界面直接使用根目录 `logo.png` 原图，保留原始透明背景。替换后运行 `powershell -NoProfile -File tools\update-logo.ps1`，按原比例重新生成 EXE / 窗口 / 托盘使用的多尺寸 ICO，不添加底色、不修改原图。
 
 ```powershell
 .\build.ps1
