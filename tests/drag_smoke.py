@@ -9,6 +9,7 @@ import time
 
 from pywinauto import Application, mouse
 from pywinauto.timings import wait_until
+from outside_click_target import collapse_panel
 from PIL import ImageGrab
 
 
@@ -228,10 +229,10 @@ try:
     settings.wait("visible", timeout=5)
     check("settings button still clicks", settings.is_visible())
     settings.close()
-    widget.child_window(auto_id="CollapseButton", control_type="Button").click_input()
+    collapse_panel(widget)
     parked()
     wait_until(5, .05, lambda: widget.rectangle().width() == capsule_width)
-    check("collapse button still clicks", True)
+    check("outside click collapses panel", True)
 
     # Hovering never expands; clicking even a non-button area of the capsule does.
     point = widget.child_window(auto_id="CapsuleText").rectangle().mid_point()
@@ -252,7 +253,7 @@ try:
     time.sleep(1)
     check("clicking capsule dot expands and leaving keeps cards open",
           widget.rectangle().width() > capsule_width)
-    widget.child_window(auto_id="CollapseButton", control_type="Button").invoke()
+    collapse_panel(widget)
     wait_until(5, .05, lambda: widget.rectangle().width() == capsule_width)
 
     position = bounds()

@@ -10,6 +10,7 @@ import time
 from PIL import ImageGrab
 from pywinauto import Application, Desktop, mouse
 from pywinauto.timings import wait_until
+from outside_click_target import collapse_panel
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--exe', default='dist/QuotaPeek.exe')
@@ -177,7 +178,7 @@ try:
     else:
         button.invoke()
     wait_until(5, .1, lambda: bool(u.IsWindowVisible(main.handle)))
-    main.child_window(auto_id='CollapseButton', control_type='Button').wait('visible', timeout=5)
+    main.child_window(auto_id='SettingsButton', control_type='Button').wait('visible', timeout=5)
     check('click opens card above taskbar', rect(main.handle)[3] <= t[1], popup=rect(main.handle))
     if physical:
         wait_until(2, .025, lambda: u.GetForegroundWindow() == before)
@@ -201,7 +202,7 @@ try:
     current = json.loads(settings_path.read_text(encoding='utf-8-sig'))
     check('undock restores saved floating position', rect(main.handle)[:2] == [current['LeftPixels'], current['TopPixels']])
     check('undock preference persisted', current['TaskbarDocked'] is False)
-    main.child_window(auto_id='CollapseButton', control_type='Button').invoke()
+    collapse_panel(main)
     check('floating capsule returns to its original position', rect(main.handle)[:2] == original_position)
     enable_docking()
     before_restart = json.loads(settings_path.read_text(encoding='utf-8-sig'))

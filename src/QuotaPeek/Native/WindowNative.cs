@@ -1,5 +1,6 @@
 using System.Runtime.InteropServices;
 using System.Windows;
+using System.Windows.Controls;
 using System.Windows.Interop;
 using System.Windows.Media;
 using Forms = System.Windows.Forms;
@@ -32,6 +33,18 @@ public static class WindowNative
     }
     public static void Unregister(Window window) => UnregisterHotKey(new WindowInteropHelper(window).Handle, HotkeyId);
 
+    public static void ActivateMenu(ContextMenu menu)
+    {
+        // NOACTIVATE hosts cannot give their popup normal deactivation handling.
+        // Activate only the menu's HWND, after Opened has created it, so WPF can
+        // dismiss on outside clicks and receive Escape without activating the widget.
+        if (PresentationSource.FromVisual(menu) is HwndSource source)
+        {
+            SetForegroundWindow(source.Handle);
+            menu.Focus();
+        }
+    }
+
     public static bool FullscreenApp()
     {
         return SHQueryUserNotificationState(out var state) == 0 && state is 2 or 3 or 4;
@@ -55,7 +68,9 @@ public static class WindowNative
         var top = bottomRight || y is null ? area.Bottom - height - 18 : (int)y.Value;
         left = Math.Clamp(left, area.Left, Math.Max(area.Left, area.Right - width));
         top = Math.Clamp(top, area.Top, Math.Max(area.Top, area.Bottom - height));
-        SetWindowPos(handle, new IntPtr(-1), left, top, 0, 0, 0x1 | 0x10);
+        // Configure establishes TOPMOST once. Repositioning must preserve the
+        // popup/owner order, especially during the taskbar's periodic refresh.
+        SetWindowPos(handle, IntPtr.Zero, left, top, 0, 0, 0x1 | 0x4 | 0x10); // NOSIZE | NOZORDER | NOACTIVATE
     }
 
     public static void ResizeAnchored(Window window, Action resize)
@@ -81,6 +96,7 @@ public static class WindowNative
     [DllImport("user32.dll")] private static extern bool SetWindowPos(IntPtr hwnd, IntPtr after, int x, int y, int cx, int cy, uint flags);
     [DllImport("user32.dll")] private static extern bool GetWindowRect(IntPtr hwnd, out Rect rect);
     [DllImport("user32.dll")] private static extern bool GetCursorPos(out Point point);
+    [DllImport("user32.dll")] private static extern bool SetForegroundWindow(IntPtr hwnd);
     [DllImport("user32.dll", SetLastError = true)] private static extern bool RegisterHotKey(IntPtr hwnd, int id, uint modifiers, uint key);
     [DllImport("user32.dll")] private static extern bool UnregisterHotKey(IntPtr hwnd, int id);
     [DllImport("shell32.dll")] private static extern int SHQueryUserNotificationState(out int state);

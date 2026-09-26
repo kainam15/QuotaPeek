@@ -2,7 +2,7 @@ $ErrorActionPreference = 'Stop'
 Add-Type -AssemblyName System.Drawing
 
 $projectRoot = Split-Path -Parent $PSScriptRoot
-$sourcePath = Join-Path $projectRoot 'logo.png'
+$sourcePath = Join-Path $projectRoot 'docs\images\logo.png'
 $iconPath = Join-Path $projectRoot 'src\QuotaPeek\Assets\QuotaPeek.ico'
 $sizes = @(16, 20, 24, 32, 40, 48, 64, 128, 256)
 $frames = [System.Collections.Generic.List[object]]::new()

@@ -72,6 +72,69 @@ Check("relay cumulative label", relay.UsageLabel == "累计消费" && relay.Used
 var unlimited = HttpQuotaProvider.ParseRelay(hone, Json("""{"hard_limit_usd":100000000}"""), Json("""{"total_usage":100}"""), "USD");
 Check("unlimited is not fake cash", unlimited.Remaining is null && unlimited.Total is null && unlimited.Used == 1);
 Check("unlimited billing is explicitly key scoped", unlimited.Scope == "当前 API key" && unlimited.UsageLabel == "key 累计消费");
+var groupWalletSnapshot = new QuotaSnapshot { ProviderId = wallet.Id, Kind = QuotaKind.Balance, Currency = "USD",
+    Remaining = 10.45m, Used = 299.55m, UsageLabel = "账户累计消费", Scope = "账户钱包", FetchedAt = DateTimeOffset.UtcNow };
+var groupWalletCard = new CardViewModel(wallet, groupWalletSnapshot, []);
+var groupApiCard = new CardViewModel(hone, unlimited with { Used = 21.13m }, []);
+var groupCodexConfig = ProviderConfig.Create(ProviderType.Codex);
+var groupCodexCard = new CardViewModel(groupCodexConfig, new QuotaSnapshot { ProviderId = groupCodexConfig.Id,
+    Kind = QuotaKind.RateWindow, Windows = [new("每周", 6, 10080, DateTimeOffset.UtcNow.AddDays(1))] }, []);
+var providerGroups = ProviderCardViewModel.Group([groupApiCard, groupCodexCard, groupWalletCard]);
+Check("Hone wallet and API share one card while Codex stays separate", providerGroups.Count == 2 && providerGroups[0].Name == "Hone" && providerGroups[1].Name == "Codex");
+var honeGroup = providerGroups[0];
+Check("wallet leads its group even when configured after API", ReferenceEquals(honeGroup.Services[0].Card, groupWalletCard) && ReferenceEquals(honeGroup.Services[1].Card, groupApiCard));
+Check("group preserves wallet balance, account spend and key spend separately", honeGroup.Services[0].Card.PrimaryValue == "$10.45"
+    && honeGroup.Services[0].Card.SecondaryText == "账户累计消费  $299.55" && honeGroup.Services[1].Card.PrimaryValue == "$21.13"
+    && honeGroup.Services[1].Card.PrimaryLabel == "key 累计消费");
+Check("group removes redundant connect-wallet hint without mutating source", honeGroup.Services[1].Message == "当前 API key 未设限。"
+    && groupApiCard.Message!.Contains("连接") && honeGroup.StatusText == "已同步");
+Check("secondary service is compact and keeps its own timestamp", honeGroup.Services[1].ValueFontSize < honeGroup.Services[0].ValueFontSize
+    && honeGroup.Services[1].Card.Updated == groupApiCard.Updated);
+var normalizedWallet = new CardViewModel(wallet with { BaseUrl = "https://HONE.vvvv.ee:443/v1/" }, groupWalletSnapshot, []);
+Check("grouping normalizes host case, default port and fetcher v1 suffix", ProviderCardViewModel.Group([groupApiCard, normalizedWallet]).Count == 1);
+Check("different provider sites remain separate", ProviderCardViewModel.Group([groupApiCard,
+    new(wallet with { BaseUrl = "https://other.example.test" }, groupWalletSnapshot, [])]).Count == 2);
+Check("different tenant paths remain separate", ProviderCardViewModel.Group([
+    new(hone with { BaseUrl = "https://example.test/team-a" }, unlimited, []),
+    new(wallet with { BaseUrl = "https://example.test/team-b" }, groupWalletSnapshot, [])]).Count == 2);
+Check("different ports remain separate", ProviderCardViewModel.Group([groupApiCard,
+    new(wallet with { BaseUrl = "https://hone.vvvv.ee:8443" }, groupWalletSnapshot, [])]).Count == 2);
+Check("grouping uses provider identity rather than display name", ProviderCardViewModel.Group([
+    new(hone with { Name = "工作 key" }, unlimited, []), new(wallet with { Name = "余额账户" }, groupWalletSnapshot, [])]).Single().Name == "Hone");
+var disabledWalletGroup = ProviderCardViewModel.Group([groupApiCard, new(wallet with { Enabled = false }, groupWalletSnapshot, [])]).Single();
+Check("disabled source is excluded and lone service retains its name", disabledWalletGroup.Name == "Hone API" && disabledWalletGroup.Services.Count == 1
+    && disabledWalletGroup.Services[0].Message == groupApiCard.Message);
+Check("empty provider list creates no cards", ProviderCardViewModel.Group([]).Count == 0);
+var staleWallet = new CardViewModel(wallet, QuotaRules.Failure(wallet, groupWalletSnapshot, "钱包暂时离线", DateTimeOffset.UtcNow), []);
+var staleGroup = ProviderCardViewModel.Group([groupApiCard, staleWallet]).Single();
+Check("partial stale status does not hide wallet failure or old balance", staleGroup.StatusText == "部分数据过期"
+    && staleGroup.Services[0].Message == "钱包暂时离线" && staleGroup.Services[0].Card.PrimaryValue == "$10.45"
+    && staleGroup.Services[0].HeaderVisibility == System.Windows.Visibility.Visible);
+var failedApi = new CardViewModel(hone, QuotaRules.Failure(hone, null, "API key 无效", DateTimeOffset.UtcNow), []);
+var failedGroup = ProviderCardViewModel.Group([groupWalletCard, failedApi]).Single();
+Check("healthy wallet does not mask API failure", failedGroup.StatusText == "部分连接失败" && failedGroup.Services[1].Message == "API key 无效");
+var setupWallet = new CardViewModel(wallet, new QuotaSnapshot { ProviderId = wallet.Id, Status = SnapshotStatus.Setup }, []);
+var setupGroup = ProviderCardViewModel.Group([groupApiCard, setupWallet]).Single();
+Check("missing wallet never promotes key spend to wallet balance", setupGroup.StatusText == "部分待连接"
+    && setupGroup.Services[0].Card.PrimaryValue == "—" && setupGroup.Services[0].Card.PrimaryLabel == "钱包余额" && setupGroup.Services[0].Card.NeedsSetup);
+var lowGroup = ProviderCardViewModel.Group([new(wallet, groupWalletSnapshot with { Remaining = 1 }, []), groupApiCard]).Single();
+Check("group retains a service low-quota warning", lowGroup.StatusText == "额度偏低");
+var duplicateApi = new CardViewModel(hone with { Id = "other-key" }, unlimited with { ProviderId = "other-key", Currency = "CNY" }, []);
+var multipleKeys = ProviderCardViewModel.Group([groupWalletCard, groupApiCard, duplicateApi]).Single();
+Check("multiple API keys remain identifiable without currency totals", multipleKeys.Services.Count == 3
+    && multipleKeys.Services[1].Name != multipleKeys.Services[2].Name && multipleKeys.Services[2].Card.PrimaryValue == "¥1.00");
+var manualOne = ProviderConfig.Create(ProviderType.Manual);
+var manualTwo = ProviderConfig.Create(ProviderType.Manual);
+Check("manual accounts with the same label are not assumed to share a supplier", ProviderCardViewModel.Group([new(manualOne, null, []), new(manualTwo, null, [])]).Count == 2);
+Check("invalid or empty sites do not merge unrelated sources", ProviderCardViewModel.Group([
+    new(hone with { BaseUrl = "" }, null, []), new(wallet with { BaseUrl = "" }, null, [])]).Count == 2);
+var groupDeepSeek = ProviderConfig.Create(ProviderType.DeepSeek);
+Check("other built-in provider accounts also group", ProviderCardViewModel.Group([
+    new(groupDeepSeek, null, []), new(groupDeepSeek with { Id = "second-deepseek" }, null, [])]).Single().Services.Count == 2);
+var groupCustom = ProviderConfig.Create(ProviderType.Custom);
+Check("custom sources group by their actual HTTP endpoint", ProviderCardViewModel.Group([
+    new(groupCustom with { Http = new() { Url = "https://example.test/balance" } }, null, []),
+    new(groupCustom with { Id = "second-custom", Http = new() { Url = "https://example.test/balance" } }, null, [])]).Single().Name == "example.test");
 Throws("HTTP 200 business errors", () => HttpQuotaProvider.ParseRelay(hone, Json("""{"error":{"message":"secret"}}"""), Json("{}"), "USD"));
 var ds = ProviderConfig.Create(ProviderType.DeepSeek);
 var dsResult = HttpQuotaProvider.Parse(ds, Json("""{"is_available":true,"balance_infos":[{"currency":"USD","total_balance":"2.30"},{"currency":"CNY","total_balance":"12.3401"}]}"""));

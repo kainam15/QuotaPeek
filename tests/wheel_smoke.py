@@ -10,6 +10,7 @@ import time
 from PIL import ImageGrab
 from pywinauto import Application, Desktop, mouse
 from pywinauto.timings import wait_until
+from outside_click_target import collapse_panel
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--exe', default='dist/QuotaPeek.exe')
@@ -198,16 +199,16 @@ try:
     stable('selection survives periodic refresh', 'Codex', 16)
     screenshot('floating-codex.png')
     main.child_window(auto_id='ExpandButton').invoke()
-    main.child_window(auto_id='CollapseButton').wait('visible', timeout=5)
+    main.child_window(auto_id='SettingsButton').wait('visible', timeout=5)
     r = main.child_window(auto_id='CardsScroll').rectangle()
     mouse.scroll(coords=(r.left + 50, r.top + 50), wheel_dist=-1)
-    main.child_window(auto_id='CollapseButton').invoke()
+    collapse_panel(main)
     stable('expanded card wheel leaves capsule selection unchanged', 'Codex')
 
     settings = open_settings()
     settings.child_window(auto_id='SavePreferencesButton').invoke()
     close_settings(settings)
-    main.child_window(auto_id='CollapseButton').invoke()
+    collapse_panel(main)
     stable('settings apply preserves selected provider by ID', 'Codex')
     settings = open_settings()
     # WPF's ListBoxItem automation name can be the record's ToString(), while
@@ -217,7 +218,7 @@ try:
     settings.child_window(auto_id='EnabledCheck').toggle()
     settings.child_window(auto_id='SaveButton').invoke()
     close_settings(settings)
-    main.child_window(auto_id='CollapseButton').invoke()
+    collapse_panel(main)
     expect('钱包 A')
     check('disabled selected provider falls back safely', text().startswith('钱包 A'))
     cycle('cycle excludes newly disabled Codex', 120, '钱包 B')

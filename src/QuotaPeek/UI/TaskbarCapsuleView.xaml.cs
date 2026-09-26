@@ -2,6 +2,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Media;
+using QuotaPeek.Native;
 
 namespace QuotaPeek.UI;
 
@@ -28,6 +29,7 @@ public partial class TaskbarCapsuleView : UserControl
     private void Settings_Click(object sender, RoutedEventArgs e) => SettingsRequested?.Invoke();
     private void Refresh_Click(object sender, RoutedEventArgs e) => RefreshRequested?.Invoke();
     private void Exit_Click(object sender, RoutedEventArgs e) => ExitRequested?.Invoke();
+    private void ContextMenu_Opened(object sender, RoutedEventArgs e) => WindowNative.ActivateMenu((ContextMenu)sender);
     private void Menu_Click(object sender, RoutedEventArgs e)
     {
         var menu = ((Border)Content).ContextMenu;

@@ -21,6 +21,7 @@ public partial class MainWindow : Window
     private readonly Icon trayIcon;
     private readonly Forms.NotifyIcon tray;
     private readonly TaskbarCapsuleHost taskbar = new();
+    private readonly OutsideClickMonitor outsideClicks;
     private readonly Forms.ToolStripMenuItem taskbarMenu;
     private readonly DispatcherTimer timer = new() { Interval = TimeSpan.FromSeconds(15) };
     private bool expanded = true, locked, userHidden, fullscreenHidden, sessionLocked, sleeping, exiting;
@@ -37,6 +38,8 @@ public partial class MainWindow : Window
     {
         InitializeComponent();
         this.app = app;
+        outsideClicks = new(Dispatcher, DismissExpandedPanel);
+        IsVisibleChanged += (_, _) => UpdateOutsideClickMonitor();
         trayIcon = LoadTrayIcon();
         tray = new Forms.NotifyIcon { Icon = trayIcon, Text = "QuotaPeek", Visible = true };
         var menu = new Forms.ContextMenuStrip();
@@ -91,6 +94,7 @@ public partial class MainWindow : Window
             WindowNative.Position(this, app.Monitor.Settings.LeftPixels, app.Monitor.Settings.TopPixels);
             ApplyDockMode();
             if (!dockMode) SavePosition();
+            UpdateOutsideClickMonitor();
         };
         timer.Tick += async (_, _) =>
         {
@@ -108,6 +112,8 @@ public partial class MainWindow : Window
         if (app.Monitor.Demo) Subtitle.Text = "演示模式 · 非真实账户数据";
     }
 
+    private void ContextMenu_Opened(object sender, RoutedEventArgs e) => WindowNative.ActivateMenu((ContextMenu)sender);
+
     private void Render()
     {
         if (exiting) return;
@@ -115,7 +121,7 @@ public partial class MainWindow : Window
         var previous = positioned && !dockMode ? WindowNative.PixelPosition(this) : ((double X, double Y)?)null;
         var cards = app.Monitor.Settings.Providers.Where(p => p.Enabled)
             .Select(p => new CardViewModel(p, app.Monitor.Snapshots.GetValueOrDefault(p.Id), app.Monitor.History(p.Id))).ToList();
-        Cards.ItemsSource = cards;
+        Cards.ItemsSource = ProviderCardViewModel.Group(cards);
         EmptyText.Visibility = cards.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
         capsuleCards = cards;
         RenderCapsule();
@@ -125,6 +131,18 @@ public partial class MainWindow : Window
         RefreshButton.IsEnabled = !app.Monitor.IsRefreshing;
         if (previous is { } position) { UpdateLayout(); WindowNative.Position(this, position.X, position.Y); }
         if (dockMode) UpdateVisibility();
+    }
+    private void DismissExpandedPanel()
+    {
+        if (!expanded || !IsVisible || locked || exiting || dragFrom is not null) return;
+        // Hiding an owner also hides its settings window. Keep that editing session visible.
+        if (OwnedWindows.Cast<Window>().Any(window => window.IsVisible)) return;
+        SetExpanded(false);
+    }
+    private void UpdateOutsideClickMonitor()
+    {
+        try { outsideClicks.SetEnabled(positioned && expanded && IsVisible && !locked && !exiting); }
+        catch (Win32Exception) { FooterText.Text = "暂时无法监听外部点击，请从托盘隐藏面板"; }
     }
 
     private void RenderCapsule()
@@ -196,6 +214,7 @@ public partial class MainWindow : Window
             SavePosition();
         }
         if (dockMode) UpdateVisibility();
+        UpdateOutsideClickMonitor();
     }
     private void ToggleLock()
     {
@@ -337,7 +356,6 @@ public partial class MainWindow : Window
         if (moved) SavePosition();
     }
     private void Expand_Click(object sender, RoutedEventArgs e) => SetExpanded(true);
-    private void Collapse_Click(object sender, RoutedEventArgs e) => SetExpanded(false);
     private void Lock_Click(object sender, RoutedEventArgs e) => ToggleLock();
     private void Settings_Click(object sender, RoutedEventArgs e) => app.OpenSettings();
     private async void Refresh_Click(object sender, RoutedEventArgs e) => await app.Monitor.RefreshAsync(true);
@@ -346,6 +364,7 @@ public partial class MainWindow : Window
     private void Exit() { exiting = true; app.Shutdown(); }
     private void OnClosing(object? sender, CancelEventArgs e)
     {
+        outsideClicks.Dispose();
         FinishDrag();
         SavePosition(); timer.Stop(); taskbar.Dispose(); tray.Visible = false; tray.Dispose(); trayIcon.Dispose();
         WindowNative.Unregister(this);

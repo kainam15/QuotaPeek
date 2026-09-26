@@ -17,7 +17,7 @@
     <PackageReference Include="Microsoft.Data.Sqlite" Version="10.0.12" />
   </ItemGroup>
   <ItemGroup>
-    <Resource Include="..\..\logo.png" Link="Assets\logo.png" />
+    <Resource Include="..\..\docs\images\logo.png" Link="Assets\logo.png" />
     <Resource Include="Assets\QuotaPeek.ico" />
   </ItemGroup>
 </Project>

@@ -2,6 +2,32 @@
 
 日期：2026-09-25。环境：Windows x64，192 DPI（200%），.NET SDK 10.0.401 / Runtime 10.0.12。
 
+## 2026-09-26 展开面板外部点击收起
+
+- 移除标题栏 `^` 按钮。展开期间点击其他窗口会收起：自由悬浮模式回到胶囊，任务栏模式隐藏展开窗口。点击内部、仅移开鼠标、操作菜单 / 设置均不会误收起；保留不抢焦点和原点击向外部窗口传递的行为。
+- **91 项现有 Core / 持久化 / 展示模型检查通过**，Release 构建及最终单文件发布成功。移除按钮的旧桌面测试入口已改为点击隔离的外部测试窗口；新增 `outside_click_smoke.py` 支持独立 EXE 和正式实例 `--pid` 验证。
+- 最终 EXE 的 **20 项自由悬浮检查**与 **22 项任务栏检查**通过：左 / 右 / 中键外部关闭且原点击送达、内部点击、移出但不点击、重新展开、设置、菜单、重复开关和正常退出。证据分别为 `.artifacts/outside-click-20260926-213551/result.json`、`.artifacts/outside-click-20260926-213455/result.json`，两次测试退出码均为 0。
+- 测试中发现任务栏每两秒定位会将主面板置于右键菜单之上；修改前 `menu stays clickable across taskbar placement refresh` 失败（`.artifacts/outside-click-20260926-213344/result.json`），定位使用 `SWP_NOZORDER` 后通过。早期尝试中还修正了快速点击未等待 WPF 捕获、隐藏窗口及已关闭窗口的 UIA 定位问题；并发任务栏实例占用空位的尝试未计为通过。
+- **正式 `dist/QuotaPeek.exe` 已更新并启动，PID 135892**，大小 76,845,751 bytes，SHA-256 `170AB100A5B4EEA373ACE9DA9E435E34A147B4BBD1109802D034C08B77798FD7`。旧 EXE 和设置备份在 `.artifacts/backups/before-outside-click-20260926-212510/`，备份已逐一核对 SHA-256。重启及现场测试后设置文件与备份哈希一致，原数据源、任务栏偏好和位置均保留。
+- **当前正式实例的 22 项真实鼠标检查全部通过**，并确认 `NOACTIVATE / TOPMOST / TOOLWINDOW` 样式。记录：`.artifacts/outside-click-20260926-213630/result.json`；实际桌面截图为同目录 `expanded.png`、`menu.png`。验收结束保留正式进程和任务栏胶囊，展开面板处于收起状态。
+
+## 2026-09-26 同供应商服务合并
+
+- **91 项 Core / 持久化 / 展示模型检查通过**，包括 Hone 钱包与 key 合并、钱包优先、地址归一化、不同站点 / 租户 / 端口隔离、多个 key 区分、币种不混算、部分失败 / 过期 / 待连接，以及停用源回退。Release 单文件发布成功。
+- **打包 EXE 隔离验证通过**：3 个来源显示为 Hone、Codex 两张卡片；保留钱包、账户消费及 API 分区，Codex 额度窗口正常；展开 / 收起、修改地址拆分 / 重新合并、停用 / 启用钱包均即时生效，设置仍保留 3 个独立数据源，测试实例正常退出。记录：`.artifacts/provider-group-20260926-202125/result.json`，WPF 渲染：同目录 `render.png`。早两轮因测试脚本误用 pywinauto 的 List / CheckBox 方法中断，修正后完整重跑通过。
+- **正式 EXE 已更新并启动**：`dist/QuotaPeek.exe`，SHA-256 `8E011AD1AC25C48D6E779A5E661792066337310E8A6CC9DAA1C8D1443E9DC4FD`。旧 EXE 与原设置已备份并验证：`.artifacts/backups/before-provider-group-20260926-202317/`。最终设置文件与该备份 SHA-256 相同，原任务栏模式、悬浮位置、启动形态、数据源及凭据均保留。
+- 正式实例重启后 3 个来源均重新读取为 `Ok`。UIA 确认只有 Hone、Codex 两个供应商标题，钱包 `$10.45`、账户累计消费 `$299.55`、key 累计消费 `$21.13` 分别对应独立 SQLite 快照，合并卡片不再提示重复连接钱包。数据为验证时读数。证据：`.artifacts/provider-group-live-20260926-202851/result.json`；已人工检查同目录正式实例的 **WPF 渲染图 `render.png`**，金额、趋势、API 分区和 Codex 均完整。
+- 桌面捕获图片返回黑屏，未将其当作物理桌面截图验收；上述图像来自运行中 EXE 的 WPF RenderTargetBitmap，设置操作使用 UIA，本次没有将真实鼠标交互标记为通过。
+
+## 2026-09-26 白色菜单外部点击关闭
+
+- 旧正式 EXE 实际复现失败：打开任务栏菜单后，前台仍属于外部窗口，点击该窗口菜单不关闭。证据：`.artifacts/context-menu-20260926-201426/result.json`。修复在任务栏与悬浮菜单的 `Opened` 中仅激活菜单 HWND 并设置菜单焦点，胶囊保留 `NOACTIVATE`。
+- 隔离发布包 **34 项真实交互检查通过**：菜单按钮 / 右键打开、外部左键 / 右键关闭、Esc 关闭，连续三轮，以及菜单内“设置”仍可执行。证据：`.artifacts/context-menu-20260926-201719/result.json`。悬浮模式 **10 项检查通过**：`.artifacts/context-menu-20260926-202311/result.json`。独立候选的 **70 项 Core / 持久化检查通过**，发布构建成功。
+- **当前正式实例专项验收通过**：`dist/QuotaPeek.exe`，76,844,592 bytes，SHA-256 `8E011AD1AC25C48D6E779A5E661792066337310E8A6CC9DAA1C8D1443E9DC4FD`，现场 PID 9944；按钮 / 右键两种入口、外部左键 / 右键、Esc，以及“设置”操作均通过。证据：`.artifacts/context-menu-20260926-203102/result.json`。正式包由同时进行的供应商分组工作更新，本轮沿用并实测该包，没有用较早的隔离候选覆盖它。
+- 任务栏综合脚本的嵌入、DPI、不重叠、不抢焦点、展开 / 收起和子窗口重建前 10 项通过；之后的菜单定位超时，**不计整套通过**：`.artifacts/taskbar-20260926-202358/result.json`。另一次因正式实例重新占用任务栏空间而未能嵌入。最终菜单验收使用当前正式实例，不依赖第二个任务栏胶囊。
+- 共享桌面上曾出现锁定、输入中断和正式实例 PID 变化，这些轮次没有算作通过。专项脚本按实际 HWND 定位 WPF 所有者设置窗口，且不会把菜单消费第一次外部点击误判成关闭失败。
+- 替换前的旧 EXE 和设置备份保留于 `.artifacts/backups/before-menu-fix-20260926-201716/`，旧 EXE SHA-256 已核对。未回滚并行工作期间的展开状态和窗口位置。另修正 Logo 资源及图标脚本对已移动图片的引用，指向现有 `docs/images/logo.png`，应用内资源名不变。
+
 ## 2026-09-26 胶囊滚轮切换
 
 - 已部署新版 `dist/QuotaPeek.exe`，76,638,716 bytes，SHA-256 `95D91DE248B686E0FA3DAE591129C18529E0E07DC0F0564F13BF59621277FC27`。通过正常关闭目标 QuotaPeek 后替换，旧 EXE 与配置已备份并校验：`.artifacts/backups/before-wheel-20260926-185525/`；部署前后配置文件 SHA-256 一致。

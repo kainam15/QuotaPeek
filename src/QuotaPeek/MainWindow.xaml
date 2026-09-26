@@ -5,7 +5,7 @@
           PreviewMouseLeftButtonDown="DragStart" PreviewMouseMove="DragMove" PreviewMouseLeftButtonUp="DragEnd" LostMouseCapture="DragLostCapture"
           PreviewMouseWheel="Capsule_MouseWheel" MouseLeave="Capsule_MouseLeave">
     <Border.Effect><DropShadowEffect Color="#000000" BlurRadius="12" ShadowDepth="2" Opacity="0.26"/></Border.Effect>
-    <Border.ContextMenu><ContextMenu><MenuItem x:Name="TaskbarDockMenu" Header="嵌入左下角任务栏" IsCheckable="True" Click="TaskbarDock_Click"/><Separator/><MenuItem Header="设置" Click="Settings_Click"/><MenuItem Header="刷新" Click="Refresh_Click"/><MenuItem Header="锁定 / 解锁鼠标穿透" Click="Lock_Click"/><Separator/><MenuItem Header="退出 QuotaPeek" Click="Exit_Click"/></ContextMenu></Border.ContextMenu>
+    <Border.ContextMenu><ContextMenu StaysOpen="False" Opened="ContextMenu_Opened"><MenuItem x:Name="TaskbarDockMenu" Header="嵌入左下角任务栏" IsCheckable="True" Click="TaskbarDock_Click"/><Separator/><MenuItem Header="设置" Click="Settings_Click"/><MenuItem Header="刷新" Click="Refresh_Click"/><MenuItem Header="锁定 / 解锁鼠标穿透" Click="Lock_Click"/><Separator/><MenuItem Header="退出 QuotaPeek" Click="Exit_Click"/></ContextMenu></Border.ContextMenu>
     <Grid>
       <Grid x:Name="Capsule" Visibility="Collapsed" Height="48" Margin="12,0,10,0" Background="Transparent" ToolTip="滚轮切换钱包 / 额度 · 单击展开 · 按住拖动">
         <Grid.ColumnDefinitions><ColumnDefinition Width="20"/><ColumnDefinition Width="*"/><ColumnDefinition Width="26"/></Grid.ColumnDefinitions>
@@ -18,44 +18,54 @@
       </Grid>
       <StackPanel x:Name="Expanded" Margin="18,15,18,14">
         <Grid x:Name="DragHeader" Margin="0,0,0,14" Background="Transparent">
-          <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+          <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
           <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
             <Image Source="/Assets/logo.png" Width="30" Height="30" Margin="0,0,9,0" Stretch="Uniform" RenderOptions.BitmapScalingMode="HighQuality" AutomationProperties.Name="QuotaPeek Logo"/>
             <StackPanel><TextBlock Text="QuotaPeek" FontSize="15" FontWeight="SemiBold"/><TextBlock x:Name="Subtitle" Text="额度，抬眼可见" FontSize="10" Foreground="{StaticResource Muted}" Margin="0,2,0,0"/></StackPanel>
           </StackPanel>
           <Button x:Name="LockButton" Grid.Column="1" Style="{StaticResource IconButton}" Content="&#xE72E;" ToolTip="锁定鼠标穿透" AutomationProperties.Name="锁定鼠标穿透" Click="Lock_Click"/>
           <Button x:Name="SettingsButton" Grid.Column="2" Style="{StaticResource IconButton}" Content="&#xE713;" ToolTip="设置" AutomationProperties.Name="打开设置" Click="Settings_Click"/>
-          <Button x:Name="CollapseButton" Grid.Column="3" Style="{StaticResource IconButton}" Content="&#xE70E;" ToolTip="收起" AutomationProperties.Name="收起额度卡片" Click="Collapse_Click"/>
         </Grid>
         <ScrollViewer x:Name="CardsScroll" MaxHeight="560" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Focusable="False">
           <ItemsControl x:Name="Cards">
             <ItemsControl.ItemTemplate>
               <DataTemplate>
-                <Border Background="{StaticResource Panel}" CornerRadius="13" Padding="14,13" Margin="0,0,0,9">
+                <Border Background="{StaticResource Panel}" CornerRadius="13" Padding="14,13" Margin="0,0,0,9" AutomationProperties.AutomationId="{Binding AutomationId}">
                   <StackPanel>
                     <Grid Margin="0,0,0,10"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-                      <StackPanel Orientation="Horizontal"><Border Width="27" Height="27" CornerRadius="8" Background="#283643" Margin="0,0,8,0"><TextBlock Text="{Binding Initial}" Foreground="{Binding Accent}" FontWeight="Bold" VerticalAlignment="Center" HorizontalAlignment="Center"/></Border><StackPanel VerticalAlignment="Center"><TextBlock Text="{Binding Name}" FontWeight="SemiBold" FontSize="13"/><TextBlock Text="{Binding Scope}" FontSize="9" Foreground="{StaticResource Muted}" Margin="0,2,0,0"/></StackPanel></StackPanel>
+                      <Grid Margin="0,0,8,0"><Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions><Border Width="27" Height="27" CornerRadius="8" Background="#283643" Margin="0,0,8,0"><TextBlock Text="{Binding Initial}" Foreground="{Binding Accent}" FontWeight="Bold" VerticalAlignment="Center" HorizontalAlignment="Center"/></Border><StackPanel Grid.Column="1" VerticalAlignment="Center"><TextBlock Text="{Binding Name}" FontWeight="SemiBold" FontSize="13" TextTrimming="CharacterEllipsis" ToolTip="{Binding Name}" AutomationProperties.AutomationId="ProviderName"/><TextBlock Text="{Binding Scope}" FontSize="9" Foreground="{StaticResource Muted}" Margin="0,2,0,0" TextTrimming="CharacterEllipsis"/></StackPanel></Grid>
                       <TextBlock Grid.Column="1" Text="{Binding StatusText}" Foreground="{Binding StatusBrush}" FontSize="10" VerticalAlignment="Center"/>
                     </Grid>
-                    <StackPanel Visibility="{Binding MoneyVisibility}">
-                      <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-                        <TextBlock Text="{Binding PrimaryValue}" FontSize="32" FontWeight="SemiBold" FontFamily="Segoe UI Variable Display, Segoe UI"/>
-                        <TextBlock Grid.Column="1" Text="{Binding PrimaryLabel}" FontSize="10" Foreground="{StaticResource Muted}" VerticalAlignment="Bottom" Margin="6,0,0,6"/>
-                      </Grid>
-                      <TextBlock Text="{Binding SecondaryText}" FontSize="11" Foreground="{StaticResource Muted}" Margin="0,4,0,2"/>
-                    </StackPanel>
-                    <ItemsControl ItemsSource="{Binding Windows}"><ItemsControl.ItemTemplate><DataTemplate>
-                      <StackPanel Margin="0,0,0,12">
-                        <Grid Margin="0,0,0,7"><TextBlock Text="{Binding Name}" FontSize="11"/><TextBlock Text="{Binding Remaining}" Foreground="{Binding Accent}" HorizontalAlignment="Right" FontWeight="SemiBold" FontSize="12"/></Grid>
-                        <ProgressBar Value="{Binding Percentage, Mode=OneWay}" Foreground="{Binding Accent}"/>
-                        <TextBlock Text="{Binding Reset}" Foreground="{StaticResource Muted}" FontSize="10" Margin="0,5,0,0"/>
-                      </StackPanel>
+                    <ItemsControl ItemsSource="{Binding Services}"><ItemsControl.ItemTemplate><DataTemplate>
+                      <Border BorderBrush="{StaticResource Line}" BorderThickness="{Binding SeparatorThickness}" Padding="{Binding Padding}" Margin="{Binding Margin}" AutomationProperties.AutomationId="{Binding AutomationId}">
+                        <StackPanel>
+                          <Grid Visibility="{Binding HeaderVisibility}" Margin="0,0,0,5">
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                            <TextBlock Text="{Binding Name}" FontSize="11" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" ToolTip="{Binding Card.Name}" Margin="0,0,8,0"/>
+                            <TextBlock Grid.Column="1" Text="{Binding Card.StatusText}" Foreground="{Binding Card.StatusBrush}" FontSize="9" VerticalAlignment="Center"/>
+                          </Grid>
+                          <StackPanel Visibility="{Binding Card.MoneyVisibility}">
+                            <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                              <TextBlock Text="{Binding Card.PrimaryValue}" FontSize="{Binding ValueFontSize}" FontWeight="SemiBold" FontFamily="Segoe UI Variable Display, Segoe UI"/>
+                              <TextBlock Grid.Column="1" Text="{Binding Card.PrimaryLabel}" FontSize="10" Foreground="{StaticResource Muted}" VerticalAlignment="Bottom" Margin="6,0,0,5"/>
+                            </Grid>
+                            <TextBlock Text="{Binding Card.SecondaryText}" Visibility="{Binding Card.SecondaryVisibility}" FontSize="11" Foreground="{StaticResource Muted}" Margin="0,4,0,2" TextWrapping="Wrap"/>
+                          </StackPanel>
+                          <ItemsControl ItemsSource="{Binding Card.Windows}"><ItemsControl.ItemTemplate><DataTemplate>
+                            <StackPanel Margin="0,0,0,12">
+                              <Grid Margin="0,0,0,7"><TextBlock Text="{Binding Name}" FontSize="11"/><TextBlock Text="{Binding Remaining}" Foreground="{Binding Accent}" HorizontalAlignment="Right" FontWeight="SemiBold" FontSize="12"/></Grid>
+                              <ProgressBar Value="{Binding Percentage, Mode=OneWay}" Foreground="{Binding Accent}"/>
+                              <TextBlock Text="{Binding Reset}" Foreground="{StaticResource Muted}" FontSize="10" Margin="0,5,0,0"/>
+                            </StackPanel>
+                          </DataTemplate></ItemsControl.ItemTemplate></ItemsControl>
+                          <StackPanel Visibility="{Binding Card.TrendVisibility}" Margin="0,7,0,5"><Viewbox Stretch="Fill" Height="34"><Polyline Width="286" Height="36" Points="{Binding Card.Trend}" Stroke="{Binding Card.Accent}" StrokeThickness="1.7" StrokeLineJoin="Round"/></Viewbox><TextBlock Text="{Binding Card.TrendLabel}" FontSize="9" Foreground="{StaticResource Muted}" Margin="0,5,0,0"/></StackPanel>
+                          <StackPanel Visibility="{Binding Card.ForecastVisibility}" Margin="0,5,0,7"><TextBlock Text="{Binding Card.Forecast}" Visibility="{Binding Card.ForecastTextVisibility}" Foreground="{Binding Card.Accent}" FontSize="10"/><TextBlock Text="{Binding Card.ResetCredits}" Visibility="{Binding Card.ResetsVisibility}" Foreground="{StaticResource Muted}" FontSize="10"/></StackPanel>
+                          <TextBlock Text="{Binding Message}" Visibility="{Binding MessageVisibility}" TextWrapping="Wrap" FontSize="10" Foreground="{StaticResource Muted}" Margin="0,5,0,7"/>
+                          <Button Content="连接账户" Visibility="{Binding Card.SetupVisibility}" Background="#2D4453" Margin="0,0,0,8" Padding="8,7" HorizontalAlignment="Left" Click="Settings_Click" AutomationProperties.Name="连接账户"/>
+                          <TextBlock Text="{Binding Card.Updated}" FontSize="9" Foreground="{StaticResource Muted}" Margin="0,4,0,0"/>
+                        </StackPanel>
+                      </Border>
                     </DataTemplate></ItemsControl.ItemTemplate></ItemsControl>
-                    <StackPanel Visibility="{Binding TrendVisibility}" Margin="0,7,0,5"><Viewbox Stretch="Fill" Height="34"><Polyline Width="286" Height="36" Points="{Binding Trend}" Stroke="{Binding Accent}" StrokeThickness="1.7" StrokeLineJoin="Round"/></Viewbox><TextBlock Text="{Binding TrendLabel}" FontSize="9" Foreground="{StaticResource Muted}" Margin="0,5,0,0"/></StackPanel>
-                    <StackPanel Visibility="{Binding ForecastVisibility}" Margin="0,5,0,7"><TextBlock Text="{Binding Forecast}" Visibility="{Binding ForecastTextVisibility}" Foreground="{Binding Accent}" FontSize="10"/><TextBlock Text="{Binding ResetCredits}" Visibility="{Binding ResetsVisibility}" Foreground="{StaticResource Muted}" FontSize="10"/></StackPanel>
-                    <TextBlock Text="{Binding Message}" Visibility="{Binding MessageVisibility}" TextWrapping="Wrap" FontSize="10" Foreground="{StaticResource Muted}" Margin="0,5,0,7"/>
-                    <Button Content="连接账户" Visibility="{Binding SetupVisibility}" Background="#2D4453" Margin="0,0,0,8" Padding="8,7" HorizontalAlignment="Left" Click="Settings_Click" AutomationProperties.Name="连接账户"/>
-                    <TextBlock Text="{Binding Updated}" FontSize="9" Foreground="{StaticResource Muted}" Margin="0,4,0,0"/>
                   </StackPanel>
                 </Border>
               </DataTemplate>

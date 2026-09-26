@@ -2,6 +2,27 @@
 
 核对日期：2026-09-25。
 
+## 2026-09-26 展开面板外部点击收起
+
+- 移除标题栏向上箭头，以外部点击收起展开卡片；自由悬浮模式回到胶囊，任务栏模式隐藏卡片并保留任务栏胶囊。仅鼠标离开不收起。
+- 参考 [EarTrumpet MouseHook 源码](https://github.com/File-New-Project/EarTrumpet/blob/master/EarTrumpet/Interop/Helpers/MouseHook.cs) 的委托保活、钩子生命周期和 `CallNextHookEx` 转发方式，以及 [Issue #897](https://github.com/File-New-Project/EarTrumpet/issues/897) 暴露的 Shell / 前台切换关闭边界；没有照搬其鼠标滚轮处理。QuotaPeek 保留 `NOACTIVATE`，通过 `WH_MOUSE_LL` 识别外部按键按下，不依赖从未获得过的焦点。
+- 按 [Microsoft LowLevelMouseProc](https://learn.microsoft.com/en-us/windows/win32/winmsg/lowlevelmouseproc) 的回调约束，只在回调中读取点击目标并投递 Dispatcher；布局、隐藏和设置持久化都在回调返回后执行，始终放行原点击。监听仅在面板展开且可见时启用，收起 / 隐藏 / 退出时解除；代次编号防止延迟的旧点击关闭重新打开的面板。
+- 使用点击时的 `WindowFromPoint` 与 PID 识别应用自身窗口，涵盖设置、WPF 菜单和 Explorer 中的任务栏子窗口，防止同一次胶囊点击被关闭逻辑与切换逻辑处理两次。打开设置时暂缓外部收起，避免 WPF 隐藏 owner 时连带隐藏编辑窗口。
+- 真实测试发现任务栏定时定位会把主面板提到自身右键菜单上方。定位改用 [SetWindowPos 的 SWP_NOZORDER](https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-setwindowpos)，保留初始化时的 TOPMOST 样式和弹出菜单顺序；回归检查等待一个完整任务栏定位周期后，验证设置菜单项仍然可被鼠标命中。
+
+## 2026-09-26 供应商卡片分组
+
+- 参考 [CodexBar 的 AccountMenuLayoutPlanner](https://github.com/steipete/CodexBar/blob/main/Sources/CodexBarCore/AccountMenuLayoutPlanner.swift)：展示层从独立快照生成主卡片和紧凑服务行。QuotaPeek 用 WPF 嵌套 ItemsControl 组织同一供应商的服务，钱包优先，组顺序沿用设置中首次出现的位置。
+- [CodexBar Issue #949](https://github.com/steipete/CodexBar/issues/949) 提醒多账户布局需要保留独立身份，并验证滚动和刷新；[PR #3938](https://github.com/steipete/CodexBar/pull/3938) 将统一供应商入口与账户自己的用量、历史分开。本实现只做展示分组，原配置 ID、凭据、历史、告警及胶囊选择保持各数据源独立，不合计不同范围的金额。
+- Hone 与 HoneWallet 属于同一供应商；服务地址按实际请求的规则归一化主机、默认端口、尾斜杠和 `/v1`，不同站点及租户路径分开。其他内置提供商按类型和地址分组，自定义 HTTP 按实际查询 URL，手动录入独立。每项服务仍显示自己的错误与更新时间，顶层汇总部分失败 / 过期 / 待连接状态；钱包已经在卡片内时，健康 API key 的未设限说明不再引导重复连接钱包。
+
+## 2026-09-26 菜单外部点击关闭
+
+- 参考 [wpf-notifyicon 的 ShowContextMenu 源码](https://github.com/hardcodet/wpf-notifyicon/blob/develop/src/NotifyIconWpf/TaskbarIcon.cs)、[Issue #37](https://github.com/hardcodet/wpf-notifyicon/issues/37) 和 [PR #119](https://github.com/hardcodet/wpf-notifyicon/pull/119)：从不激活的宿主弹出 WPF 菜单时，需要让菜单自己的 HWND 获得前台状态，并让菜单接收键盘焦点，才能正常处理外部点击和 Esc。
+- QuotaPeek 的任务栏子窗口与悬浮窗口都保留 `NOACTIVATE`。在 `ContextMenu.Opened` 中取得已创建的菜单 HWND，仅激活菜单；按钮打开与右键打开共用该路径。使用 WPF 自带的关闭和鼠标捕获逻辑，不增加全局鼠标钩子或轮询。
+- 本机旧 EXE 已复现：菜单打开后前台 HWND 仍是外部窗口，再次点击该窗口不能关闭菜单。回归脚本 `tests/context_menu_smoke.py` 使用实际鼠标输入，并验证外部窗口收到点击、菜单消失、菜单项仍可执行；可通过 `--pid` 复核正式实例。
+- 构建时发现 Logo 已移动到 `docs/images/logo.png`，项目资源和图标生成脚本仍引用不存在的根目录路径。已将两处输入路径指向现有文件，保留应用内 `/Assets/logo.png` 资源名和原图片。
+
 ## 2026-09-26 任务栏嵌入
 
 - [TrafficMonitor 的 TaskBarDlg](https://github.com/zhongyang219/TrafficMonitor/blob/master/TrafficMonitor/TaskBarDlg.cpp) 和 [PR #1106](https://github.com/zhongyang219/TrafficMonitor/pull/1106)：参考独立子窗口、Windows 11 直接挂到 `Shell_TrayWnd`、按任务栏真实矩形定位和定时恢复的思路。没有复制项目代码。

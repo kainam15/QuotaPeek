@@ -3,7 +3,7 @@
              FontFamily="Segoe UI, Microsoft YaHei UI" Foreground="{StaticResource Text}" UseLayoutRounding="True" Focusable="False">
   <Border CornerRadius="16" Background="{StaticResource Canvas}" BorderBrush="{StaticResource Line}" BorderThickness="1">
     <Border.ContextMenu>
-      <ContextMenu>
+      <ContextMenu StaysOpen="False" Opened="ContextMenu_Opened">
         <MenuItem Header="展开 / 收起额度卡片" Click="Expand_Click"/>
         <MenuItem Header="设置" Click="Settings_Click"/>
         <MenuItem Header="立即刷新" Click="Refresh_Click"/>

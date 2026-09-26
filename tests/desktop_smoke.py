@@ -11,6 +11,7 @@ import time
 from pywinauto import Application, Desktop, mouse, keyboard
 from pywinauto.timings import wait_until
 from win32info import process_name
+from outside_click_target import collapse_panel
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--exe", default="dist/QuotaPeek.exe")
@@ -65,7 +66,7 @@ try:
         check("demo visibly labeled", "演示" in text)
     widget.capture_as_image().save(artifact / "desktop-widget.png")
     width = widget.rectangle().width()
-    widget.child_window(auto_id="CollapseButton", control_type="Button").invoke()
+    collapse_panel(widget)
     wait_until(5, .1, lambda: widget.rectangle().width() < width)
     check("capsule collapses")
     widget.child_window(auto_id="ExpandButton", control_type="Button").invoke()

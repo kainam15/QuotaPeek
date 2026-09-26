@@ -16,6 +16,7 @@ public sealed class CardViewModel
     public string PrimaryValue { get; }
     public string PrimaryLabel { get; }
     public string SecondaryText { get; }
+    public Visibility SecondaryVisibility => SecondaryText.Length == 0 ? Visibility.Collapsed : Visibility.Visible;
     public string Updated { get; }
     public string Scope { get; }
     public string? Message { get; }
