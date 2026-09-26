@@ -90,6 +90,7 @@ public sealed record AppSettings
     public double? LeftPixels { get; set; }
     public double? TopPixels { get; set; }
     public bool StartExpanded { get; set; } = true;
+    public bool TaskbarDocked { get; set; }
 }
 
 public sealed class ProviderException(string message, TimeSpan? retryAfter = null) : Exception(message)

@@ -16,6 +16,7 @@
           <TextBlock Text="桌面偏好" Foreground="{StaticResource Muted}" FontSize="11" Margin="0,0,0,8"/>
           <CheckBox x:Name="NotifyCheck" Content="额度低时通知"/>
           <CheckBox x:Name="FullscreenCheck" Content="全屏时自动隐藏"/>
+          <CheckBox x:Name="TaskbarDockCheck" Content="嵌入左下角任务栏" ToolTip="胶囊显示在任务栏左侧空位，单击展开卡片；空间不足时自动使用悬浮胶囊。"/>
           <CheckBox x:Name="StartupCheck" Content="登录 Windows 时启动"/>
           <Button x:Name="SavePreferencesButton" Content="保存桌面偏好" Click="Preferences_Click" Margin="0,7,0,0"/>
         </StackPanel>

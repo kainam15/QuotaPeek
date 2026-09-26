@@ -26,6 +26,7 @@ public partial class SettingsWindow : Window
         AddType.ItemsSource = Types.Select(t => t.Name); AddType.SelectedIndex = 0;
         NotifyCheck.IsChecked = working.Notifications;
         FullscreenCheck.IsChecked = working.AutoHideFullscreen;
+        TaskbarDockCheck.IsChecked = working.TaskbarDocked;
         StartupCheck.IsChecked = working.StartWithWindows;
         ReloadList(working.Providers.FirstOrDefault()?.Id);
         Closed += (_, _) => lifetime.Cancel();
@@ -210,11 +211,12 @@ public partial class SettingsWindow : Window
         }
         catch (Exception error) { ShowError(error); }
     }
-    private void Commit(string? savingId = null)
+    private void Commit(string? savingId = null, bool saveDocking = false)
     {
         // Window coordinates can change while settings are open.
         working.LeftPixels = app.Monitor.Settings.LeftPixels; working.TopPixels = app.Monitor.Settings.TopPixels;
         working.StartExpanded = app.Monitor.Settings.StartExpanded;
+        if (!saveDocking) working.TaskbarDocked = app.Monitor.Settings.TaskbarDocked;
         var committed = Clone(working);
         committed.Providers = committed.Providers.Where(p => !drafts.Contains(p.Id) || p.Id == savingId).ToList();
         app.SaveSettings(committed);
@@ -231,7 +233,8 @@ public partial class SettingsWindow : Window
             }
             working.StartWithWindows = startup;
             working.Notifications = NotifyCheck.IsChecked == true; working.AutoHideFullscreen = FullscreenCheck.IsChecked == true;
-            Commit(); StatusText.Text = "桌面偏好已保存。";
+            working.TaskbarDocked = TaskbarDockCheck.IsChecked == true;
+            Commit(saveDocking: true); StatusText.Text = "桌面偏好已保存。";
         }
         catch (Exception error) { ShowError(error); }
     }

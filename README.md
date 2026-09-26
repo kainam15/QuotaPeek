@@ -1,6 +1,6 @@
 # QuotaPeek
 
-常驻 Windows 右下角的原生 WPF 额度 Widget。默认包含 **Hone API** 和 **Codex**：Hone 展示 API 余额 / 累计消费，Codex 展示订阅额度窗口 / 重置时间。
+原生 WPF 额度 Widget，支持自由悬浮和嵌入 Windows 底部任务栏左侧。默认包含 **Hone API** 和 **Codex**：Hone 展示 API 余额 / 累计消费，Codex 展示订阅额度窗口 / 重置时间。
 
 ## 使用
 
@@ -11,6 +11,9 @@
 2. **Codex** 自动查找本机 Codex，并复用它已有的 ChatGPT 登录。读取官方 app-server 的 `account/rateLimits/read`；不创建会话、不发模型请求，不复制登录 token。若找不到程序，可在设置中填写 `codex.exe` 完整路径。
 3. 点击向上箭头收成胶囊。悬停保持收起，单击胶囊展开；按住胶囊任意位置（包括余额文字、圆点、空白处和右侧握柄）并移动即可拖动。展开后也可拖动标题和卡片空白区域。拖动时保持当前形态，松手自动记住位置；展开后移开鼠标也不会自动收起。
 4. 锁定后鼠标穿透。用 **Ctrl+Alt+Q** 解锁；如冲突则尝试 **Ctrl+Alt+Shift+Q**，实际快捷键在锁定按钮提示中显示。托盘菜单始终可以解锁、刷新、设置、隐藏和退出。
+5. **嵌入左下角任务栏**：在胶囊右键菜单、托盘菜单中勾选，或在设置的“桌面偏好”中勾选并保存。胶囊使用任务栏左侧空位，单击在上方展开 / 收起卡片，右侧菜单可“切回自由悬浮”。任务栏模式不拖动，切回时恢复原有悬浮位置和展开状态；重启后记住所选模式。
+
+任务栏嵌入面向主屏幕的底部任务栏，自动适配 DPI，并根据现有系统按钮调整宽度；窄宽度优先显示完整余额。空间不足或暂时无法读取任务栏布局时回退为左下角悬浮胶囊，有空间后自动恢复嵌入。不会移动“开始”、固定图标、小工具或通知区域；不修改 Windows 的任务栏设置。隐藏胶囊和锁定穿透仍可通过托盘菜单恢复。
 
 初次启动展开以便连接账户，之后记住收起状态和位置。开机自启默认关闭，需要在设置中主动开启。
 
@@ -75,6 +78,7 @@ python -m pip install pywinauto Pillow
 python tests\desktop_smoke.py --exe dist\QuotaPeek.exe
 python tests\desktop_smoke.py --exe dist\QuotaPeek.exe --live
 python tests\drag_smoke.py --exe dist\QuotaPeek.exe
+python tests\taskbar_smoke.py --exe dist\QuotaPeek.exe
 ```
 
 测试每次使用独立数据目录，不覆盖正常账户。拖动测试会操作真实鼠标，运行期间需要保持桌面空闲；检测到外部鼠标输入时会中止并报告环境干扰。`--demo` 仅用演示数据，不联网；`--data-dir` 可隔离设置与凭据命名空间；`--render` 输出 WPF 渲染图用于视觉检查，不能单独证明物理输入正常。

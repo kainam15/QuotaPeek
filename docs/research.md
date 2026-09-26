@@ -2,6 +2,15 @@
 
 核对日期：2026-09-25。
 
+## 2026-09-26 任务栏嵌入
+
+- [TrafficMonitor 的 TaskBarDlg](https://github.com/zhongyang219/TrafficMonitor/blob/master/TrafficMonitor/TaskBarDlg.cpp) 和 [PR #1106](https://github.com/zhongyang219/TrafficMonitor/pull/1106)：参考独立子窗口、Windows 11 直接挂到 `Shell_TrayWnd`、按任务栏真实矩形定位和定时恢复的思路。没有复制项目代码。
+- [重叠问题 #1718](https://github.com/zhongyang219/TrafficMonitor/issues/1718)：Windows 11 的任务栏子窗口矩形不等于图标占用区域，不能把嵌入理解为系统为插件预留空间。QuotaPeek 在后台通过 UI Automation 读取按钮矩形，仅使用左半边空位；不调整 Explorer 的布局。没有足够空间时回退为悬浮胶囊，并继续检测恢复。
+- [WPF HwndSourceParameters 源码](https://github.com/dotnet/wpf/blob/main/src/Microsoft.DotNet.Wpf/src/PresentationCore/System/Windows/InterOp/HwndSourceParameters.cs) 明确区分 `UsesPerPixelTransparency` 与旧的 `UsesPerPixelOpacity`；前者支持 Windows 8 及以上的透明子窗口。本项目使用独立 `HwndSource` 承载紧凑胶囊，主窗口继续承载展开卡片，任务栏子窗口销毁后可以单独重建。
+- [SetParent 文档](https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-setparent) 提示窗口样式和跨进程 DPI 的限制。因此不把现有 WPF 主窗口重新设为 Explorer 的子窗口；通过创建参数直接指定子窗口父级，像素布局和 WPF 尺寸按实际 DPI 换算。
+- `TaskbarDocked` 默认关闭以兼容旧配置；独立于原来的悬浮坐标、展开状态。入口放在胶囊右键菜单、托盘菜单和桌面偏好。嵌入模式单击切换上方卡片，菜单可切回自由悬浮；长账户名称让出空间给余额。
+- 本机真实点击发现：跨进程任务栏子窗口收到 `WM_MOUSEACTIVATE` 前，前台窗口可能已被系统清空，单独返回 `MA_NOACTIVATE` 不够。用 [SetWinEventHook](https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-setwineventhook) 的进程外前台事件记录原窗口，在点击时仅恢复空前台状态；如果已有新的活动窗口则不干预。停用嵌入或退出时注销事件，不向 Explorer 注入 DLL。
+
 ## Hone 优先
 
 用户给出的站点是 [hone.vvvv.ee](https://hone.vvvv.ee/)。无认证的 `GET /api/status` 实测返回 New API、版本 `v1.0.0-rc.40`、`quota_display_type=USD`、`quota_per_unit=500000`。

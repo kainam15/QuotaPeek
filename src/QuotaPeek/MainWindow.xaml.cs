@@ -19,13 +19,15 @@ public partial class MainWindow : Window
 {
     private readonly App app;
     private readonly Forms.NotifyIcon tray;
+    private readonly TaskbarCapsuleHost taskbar = new();
+    private readonly Forms.ToolStripMenuItem taskbarMenu;
     private readonly DispatcherTimer timer = new() { Interval = TimeSpan.FromSeconds(15) };
     private bool expanded = true, locked, userHidden, fullscreenHidden, sessionLocked, sleeping, exiting;
     private (int X, int Y)? dragFrom;
     private (double X, double Y) dragWindow;
     private bool dragMoved, dragExpands;
     private string unlock = "托盘菜单";
-    private bool rendered, positioned;
+    private bool rendered, positioned, loaded, dockMode;
 
     public MainWindow(App app)
     {
@@ -37,10 +39,18 @@ public partial class MainWindow : Window
         menu.Items.Add("立即刷新", null, (_, _) => Dispatcher.InvokeAsync(async () => await app.Monitor.RefreshAsync(true)));
         menu.Items.Add("设置", null, (_, _) => Dispatcher.Invoke(app.OpenSettings));
         menu.Items.Add("锁定 / 解锁穿透", null, (_, _) => Dispatcher.Invoke(ToggleLock));
+        taskbarMenu = new Forms.ToolStripMenuItem("嵌入左下角任务栏", null, (_, _) => Dispatcher.Invoke(() => SetTaskbarDocked(!dockMode)));
+        menu.Items.Add(taskbarMenu);
         menu.Items.Add(new Forms.ToolStripSeparator());
         menu.Items.Add("退出 QuotaPeek", null, (_, _) => Dispatcher.Invoke(Exit));
         tray.ContextMenuStrip = menu;
-        tray.DoubleClick += (_, _) => Dispatcher.Invoke(() => { userHidden = false; Show(); SetExpanded(true); });
+        tray.DoubleClick += (_, _) => Dispatcher.Invoke(() => { userHidden = false; SetExpanded(true); UpdateVisibility(); });
+        taskbar.View.ToggleRequested += () => SetExpanded(!expanded);
+        taskbar.View.UndockRequested += () => SetTaskbarDocked(false);
+        taskbar.View.SettingsRequested += app.OpenSettings;
+        taskbar.View.RefreshRequested += async () => await app.Monitor.RefreshAsync(true);
+        taskbar.View.ExitRequested += Exit;
+        taskbar.PlacementChanged += UpdateVisibility;
         app.Monitor.Changed += Render;
         app.Monitor.LowQuota += NotifyLow;
         SourceInitialized += (_, _) =>
@@ -53,8 +63,10 @@ public partial class MainWindow : Window
         };
         Loaded += async (_, _) =>
         {
+            if (loaded) return;
+            loaded = true;
             CardsScroll.MaxHeight = Math.Max(160, Math.Min(560, SystemParameters.WorkArea.Height - 150));
-            SetExpanded(app.Monitor.Settings.StartExpanded, false);
+            SetExpanded(!app.Monitor.Settings.TaskbarDocked && app.Monitor.Settings.StartExpanded, false);
             Render(); UpdateLayout();
             timer.Start();
             await app.Monitor.RefreshAsync();
@@ -70,7 +82,8 @@ public partial class MainWindow : Window
             UpdateLayout();
             positioned = true;
             WindowNative.Position(this, app.Monitor.Settings.LeftPixels, app.Monitor.Settings.TopPixels);
-            SavePosition();
+            ApplyDockMode();
+            if (!dockMode) SavePosition();
         };
         timer.Tick += async (_, _) =>
         {
@@ -91,7 +104,8 @@ public partial class MainWindow : Window
     private void Render()
     {
         if (exiting) return;
-        var previous = positioned ? WindowNative.PixelPosition(this) : ((double X, double Y)?)null;
+        if (positioned) ApplyDockMode();
+        var previous = positioned && !dockMode ? WindowNative.PixelPosition(this) : ((double X, double Y)?)null;
         var cards = app.Monitor.Settings.Providers.Where(p => p.Enabled)
             .Select(p => new CardViewModel(p, app.Monitor.Snapshots.GetValueOrDefault(p.Id), app.Monitor.History(p.Id))).ToList();
         Cards.ItemsSource = cards;
@@ -103,10 +117,12 @@ public partial class MainWindow : Window
         CapsuleText.Text = priority is null ? "QuotaPeek · 添加账户" : priority.Name + "  " + priority.PrimaryValue;
         if (priority is not null) CapsuleDot.Fill = priority.StatusBrush;
         var tooltip = string.Join("\n", cards.Select(c => c.Name + " " + c.PrimaryValue + " · " + c.StatusText));
+        taskbar.View.Update(priority?.Name ?? "QuotaPeek", priority?.PrimaryValue ?? "添加账户", CapsuleDot.Fill, tooltip);
         tray.Text = tooltip.Length > 120 ? tooltip[..120] : tooltip.Length == 0 ? "QuotaPeek" : tooltip;
         FooterText.Text = app.Monitor.Demo ? "演示数据 · 仅用于预览" : locked ? "已锁定 · " + unlock + " 解锁" : app.Monitor.Paused ? "暂停刷新" : app.Monitor.IsRefreshing ? "正在同步…" : app.Monitor.Warning ?? "自动刷新 · 数据保存在本机";
         RefreshButton.IsEnabled = !app.Monitor.IsRefreshing;
         if (previous is { } position) { UpdateLayout(); WindowNative.Position(this, position.X, position.Y); }
+        if (dockMode) UpdateVisibility();
     }
 
     private void NotifyLow(ProviderConfig config, QuotaSnapshot snapshot)
@@ -119,9 +135,9 @@ public partial class MainWindow : Window
         if (message == 0x21) { handled = true; return new IntPtr(3); } // MA_NOACTIVATE
         if (message == WindowNative.WmHotkey && wparam.ToInt32() == WindowNative.HotkeyId)
         {
-            locked = false; WindowNative.Configure(this, false); userHidden = false; Show(); SetExpanded(true); Render(); handled = true;
+            locked = false; WindowNative.Configure(this, false); taskbar.SetLocked(false); userHidden = false; SetExpanded(true); UpdateVisibility(); Render(); handled = true;
         }
-        if (message == 0x2E0 && positioned) Dispatcher.BeginInvoke(() => { var p = WindowNative.PixelPosition(this); WindowNative.Position(this, p.X, p.Y); });
+        if (message == 0x2E0 && positioned) Dispatcher.BeginInvoke(() => { if (dockMode) UpdateVisibility(); else { var p = WindowNative.PixelPosition(this); WindowNative.Position(this, p.X, p.Y); } });
         return IntPtr.Zero;
     }
     private void SetExpanded(bool value, bool remember = true)
@@ -130,12 +146,13 @@ public partial class MainWindow : Window
         FinishDrag();
         expanded = value;
         void Resize() { Width = value ? 370 : 252; Expanded.Visibility = value ? Visibility.Visible : Visibility.Collapsed; Capsule.Visibility = value ? Visibility.Collapsed : Visibility.Visible; }
-        if (positioned) WindowNative.ResizeAnchored(this, Resize); else Resize();
-        if (remember)
+        if (positioned && !dockMode) WindowNative.ResizeAnchored(this, Resize); else { Resize(); UpdateLayout(); }
+        if (remember && !dockMode)
         {
             app.Monitor.Settings.StartExpanded = value;
             SavePosition();
         }
+        if (dockMode) UpdateVisibility();
     }
     private void ToggleLock()
     {
@@ -143,14 +160,55 @@ public partial class MainWindow : Window
         locked = !locked;
         if (locked) SetExpanded(false, false);
         WindowNative.Configure(this, locked);
+        taskbar.SetLocked(locked);
         Render();
     }
-    private void ToggleVisible() { userHidden = !userHidden; if (userHidden) Hide(); else { Show(); CheckFullscreen(); } }
+    private void ToggleVisible() { userHidden = !userHidden; CheckFullscreen(); UpdateVisibility(); }
     private void CheckFullscreen()
     {
         var hide = app.Monitor.Settings.AutoHideFullscreen && WindowNative.FullscreenApp();
-        if (hide && !fullscreenHidden) { fullscreenHidden = true; Hide(); }
-        else if (!hide && fullscreenHidden) { fullscreenHidden = false; if (!userHidden) Show(); }
+        if (hide != fullscreenHidden) { fullscreenHidden = hide; UpdateVisibility(); }
+    }
+
+    private void SetTaskbarDocked(bool value)
+    {
+        app.Monitor.Settings.TaskbarDocked = value;
+        ApplyDockMode();
+        try { app.Store.Save(app.Monitor.Settings); }
+        catch (Exception error) when (error is IOException or UnauthorizedAccessException) { FooterText.Text = "显示方式未保存：数据目录不可写"; }
+    }
+
+    private void ApplyDockMode()
+    {
+        var value = app.Monitor.Settings.TaskbarDocked;
+        taskbarMenu.Checked = TaskbarDockMenu.IsChecked = value;
+        if (dockMode == value) return;
+        FinishDrag();
+        if (value) SavePosition();
+        dockMode = value;
+        Capsule.ToolTip = value ? "单击展开 · 右键切换显示方式" : "单击展开 · 按住拖动";
+        taskbar.SetEnabled(value);
+        SetExpanded(!value && app.Monitor.Settings.StartExpanded, false);
+        if (!value) WindowNative.Position(this, app.Monitor.Settings.LeftPixels, app.Monitor.Settings.TopPixels);
+        UpdateVisibility();
+    }
+
+    private void UpdateVisibility()
+    {
+        if (exiting || !positioned) return;
+        var hidden = userHidden || fullscreenHidden || dockMode && taskbar.TaskbarHidden;
+        taskbar.SetVisible(!hidden);
+        if (hidden || dockMode && taskbar.IsAttached && !expanded) { Hide(); return; }
+        if (!IsVisible) Show();
+        if (!dockMode) return;
+        UpdateLayout();
+        var area = Forms.Screen.PrimaryScreen!.WorkingArea;
+        var dpi = VisualTreeHelper.GetDpi(this);
+        var anchor = taskbar.Bounds;
+        var x = anchor?.Left ?? area.Left + (int)(8 * dpi.DpiScaleX);
+        var y = (anchor?.Top ?? area.Bottom) - ActualHeight * dpi.DpiScaleY - 4 * dpi.DpiScaleY;
+        WindowNative.Position(this, x, y);
+        if (taskbar.Warning is { } warning) FooterText.Text = warning;
     }
     private void SessionSwitch(object sender, SessionSwitchEventArgs e) => Dispatcher.BeginInvoke(async () =>
     {
@@ -169,11 +227,12 @@ public partial class MainWindow : Window
     private void DisplayChanged(object? sender, EventArgs e) => Dispatcher.BeginInvoke(() =>
     {
         if (!positioned) return;
+        if (dockMode) { _ = taskbar.RefreshAsync(); UpdateVisibility(); return; }
         var p = WindowNative.PixelPosition(this); WindowNative.Position(this, p.X, p.Y);
     });
     private void SavePosition()
     {
-        if (!positioned) return;
+        if (!positioned || dockMode) return;
         var p = WindowNative.PixelPosition(this);
         app.Monitor.Settings.LeftPixels = p.X; app.Monitor.Settings.TopPixels = p.Y;
         try { app.Store.Save(app.Monitor.Settings); }
@@ -181,7 +240,7 @@ public partial class MainWindow : Window
     }
     private void DragStart(object sender, MouseButtonEventArgs e)
     {
-        if (locked || dragFrom is not null) return;
+        if (locked || dockMode || dragFrom is not null) return;
         var control = FindDragControl(e.OriginalSource as DependencyObject);
         if (control is not null && control != ExpandButton) return;
         dragFrom = WindowNative.Cursor(); dragWindow = WindowNative.PixelPosition(this);
@@ -240,11 +299,12 @@ public partial class MainWindow : Window
     private void Settings_Click(object sender, RoutedEventArgs e) => app.OpenSettings();
     private async void Refresh_Click(object sender, RoutedEventArgs e) => await app.Monitor.RefreshAsync(true);
     private void Exit_Click(object sender, RoutedEventArgs e) => Exit();
+    private void TaskbarDock_Click(object sender, RoutedEventArgs e) => SetTaskbarDocked(TaskbarDockMenu.IsChecked);
     private void Exit() { exiting = true; app.Shutdown(); }
     private void OnClosing(object? sender, CancelEventArgs e)
     {
         FinishDrag();
-        SavePosition(); timer.Stop(); tray.Visible = false; tray.Dispose();
+        SavePosition(); timer.Stop(); taskbar.Dispose(); tray.Visible = false; tray.Dispose();
         WindowNative.Unregister(this);
         SystemEvents.SessionSwitch -= SessionSwitch; SystemEvents.PowerModeChanged -= PowerChanged; SystemEvents.DisplaySettingsChanged -= DisplayChanged;
         app.Monitor.Changed -= Render; app.Monitor.LowQuota -= NotifyLow;
