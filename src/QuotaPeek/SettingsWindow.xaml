@@ -1,5 +1,5 @@
 <Window x:Class="QuotaPeek.SettingsWindow" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="QuotaPeek 设置" Width="800" Height="720" MinWidth="710" MinHeight="540" WindowStartupLocation="CenterScreen" Background="{StaticResource Canvas}" Foreground="{StaticResource Text}" FontFamily="Segoe UI, Microsoft YaHei UI">
+        Title="QuotaPeek 设置" Icon="/Assets/QuotaPeek.ico" Width="800" Height="720" MinWidth="710" MinHeight="540" WindowStartupLocation="CenterScreen" Background="{StaticResource Canvas}" Foreground="{StaticResource Text}" FontFamily="Segoe UI, Microsoft YaHei UI">
   <Grid Margin="25,22">
     <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
     <Grid Margin="0,0,0,20"><StackPanel><TextBlock Text="让额度一目了然" FontSize="24" FontWeight="SemiBold"/><TextBlock Text="连接账户，设置你的提醒和刷新节奏。" Foreground="{StaticResource Muted}" Margin="0,6,0,0"/></StackPanel><TextBlock Text="QuotaPeek  /  0.1" Foreground="{StaticResource Mint}" HorizontalAlignment="Right" VerticalAlignment="Center"/></Grid>

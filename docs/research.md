@@ -73,3 +73,9 @@ SQLite 保存规范化快照与阈值状态；UI 只拿规范化模型。失败�
 - [Eto 的 WPF 窗口实现](https://github.com/picoe/Eto/blob/develop/src/Eto.Wpf/Forms/WpfWindow.cs)、[Issue #1903](https://github.com/picoe/Eto/issues/1903)、[PR #2108](https://github.com/picoe/Eto/pull/2108)：参考交互控件与窗口拖动分离、鼠标捕获需要可靠清理的经验。QuotaPeek 保留原有不激活窗口的像素定位方式；按下、拖动、松开及捕获丢失由同一外层元素处理，不引入框架依赖。
 - 使用 Windows 的最小拖动距离并按窗口 DPI 换算到物理像素，区分单击抖动和真正拖动。最终交互按用户要求移除悬停展开及移开后自动收起：悬停保持原状，单击胶囊展开，按住移动则拖动且不触发展开。松开前排队的移动事件可能看到已释放的按钮状态，因此由 MouseUp / LostMouseCapture 完成手势清理，避免丢失轻微抖动后的单击。
 - 首次 Loaded 中的宽度调整可能被 Show 的初始原生尺寸覆盖。首次 ContentRendered 再应用展开 / 收起尺寸，随后定位并保存；避免收起状态重启后回到展开宽度，也避免初始化中覆盖已保存的位置。
+
+## 2026-09-26 临时 Logo
+
+- 参考 [PowerToys 的 PowerLauncher.csproj](https://github.com/microsoft/PowerToys/blob/main/src/modules/launcher/PowerLauncher/PowerLauncher.csproj)，将同一 ICO 同时设为 `ApplicationIcon` 和 WPF `Resource`，覆盖 EXE、窗口与托盘；单文件发布后无需在程序旁放置图片。
+- [WPF Window 源码](https://github.com/dotnet/wpf/blob/main/src/Microsoft.DotNet.Wpf/src/PresentationFramework/System/Windows/Window.cs) 明确窗口图标优先使用 `Window.Icon`；这里显式引用内嵌资源。[WinForms Issue #8929](https://github.com/dotnet/winforms/issues/8929) 与 [PR #8983](https://github.com/dotnet/winforms/pull/8983) 说明 ICO 尺寸选择与原生图标提取的边界。托盘直接按系统小图标尺寸读取内嵌 ICO，并在退出时释放。
+- 保留根目录 `logo.png` 原图；`tools/update-logo.ps1` 按原比例生成 16–256 px 共九种尺寸的 ICO 和 README 预览。沿用界面的薄荷绿底色，保证黑色图案在深浅背景上可见。README 明确说明 Logo 仅作临时使用，并非本项目作者本人设计。

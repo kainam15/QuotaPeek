@@ -6,6 +6,7 @@
     <UseWindowsForms>true</UseWindowsForms>
     <ImplicitUsings>disable</ImplicitUsings>
     <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>Assets\QuotaPeek.ico</ApplicationIcon>
     <AssemblyName>QuotaPeek</AssemblyName>
     <Version>0.1.0</Version>
     <!-- WPF owns startup/DPI; WinForms is used only for NotifyIcon and monitor bounds. -->
@@ -14,5 +15,9 @@
   <ItemGroup>
     <ProjectReference Include="..\QuotaPeek.Core\QuotaPeek.Core.csproj" />
     <PackageReference Include="Microsoft.Data.Sqlite" Version="10.0.12" />
+  </ItemGroup>
+  <ItemGroup>
+    <Resource Include="..\..\logo.png" Link="Assets\logo.png" />
+    <Resource Include="Assets\QuotaPeek.ico" />
   </ItemGroup>
 </Project>

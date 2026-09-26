@@ -18,6 +18,7 @@ namespace QuotaPeek;
 public partial class MainWindow : Window
 {
     private readonly App app;
+    private readonly Icon trayIcon;
     private readonly Forms.NotifyIcon tray;
     private readonly TaskbarCapsuleHost taskbar = new();
     private readonly Forms.ToolStripMenuItem taskbarMenu;
@@ -36,7 +37,8 @@ public partial class MainWindow : Window
     {
         InitializeComponent();
         this.app = app;
-        tray = new Forms.NotifyIcon { Icon = MakeIcon(), Text = "QuotaPeek", Visible = true };
+        trayIcon = LoadTrayIcon();
+        tray = new Forms.NotifyIcon { Icon = trayIcon, Text = "QuotaPeek", Visible = true };
         var menu = new Forms.ContextMenuStrip();
         menu.Items.Add("显示 / 隐藏", null, (_, _) => Dispatcher.Invoke(ToggleVisible));
         menu.Items.Add("立即刷新", null, (_, _) => Dispatcher.InvokeAsync(async () => await app.Monitor.RefreshAsync(true)));
@@ -345,29 +347,17 @@ public partial class MainWindow : Window
     private void OnClosing(object? sender, CancelEventArgs e)
     {
         FinishDrag();
-        SavePosition(); timer.Stop(); taskbar.Dispose(); tray.Visible = false; tray.Dispose();
+        SavePosition(); timer.Stop(); taskbar.Dispose(); tray.Visible = false; tray.Dispose(); trayIcon.Dispose();
         WindowNative.Unregister(this);
         SystemEvents.SessionSwitch -= SessionSwitch; SystemEvents.PowerModeChanged -= PowerChanged; SystemEvents.DisplaySettingsChanged -= DisplayChanged;
         app.Monitor.Changed -= Render; app.Monitor.LowQuota -= NotifyLow;
         if (!exiting) { exiting = true; app.Shutdown(); }
     }
-    private static Icon MakeIcon()
+    private static Icon LoadTrayIcon()
     {
-        using var bitmap = new Bitmap(32, 32);
-        using var g = Graphics.FromImage(bitmap);
-        g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
-        g.Clear(System.Drawing.Color.Transparent);
-        using var background = new SolidBrush(System.Drawing.Color.FromArgb(166, 237, 207));
-        g.FillEllipse(background, 1, 1, 30, 30);
-        using var font = new Font("Segoe UI", 19, System.Drawing.FontStyle.Bold, GraphicsUnit.Pixel);
-        using var ink = new SolidBrush(System.Drawing.Color.FromArgb(17, 24, 32));
-        g.DrawString("Q", font, ink, 5, 3);
-        var handle = bitmap.GetHicon();
-        var icon = (System.Drawing.Icon)System.Drawing.Icon.FromHandle(handle).Clone();
-        DestroyIcon(handle);
-        return icon;
+        using var stream = Application.GetResourceStream(new Uri("pack://application:,,,/Assets/QuotaPeek.ico")).Stream;
+        return new Icon(stream, Forms.SystemInformation.SmallIconSize);
     }
-    [System.Runtime.InteropServices.DllImport("user32.dll")] private static extern bool DestroyIcon(IntPtr handle);
     private void CaptureRequested()
     {
         if (rendered || app.RenderPath is not { } path) return;
