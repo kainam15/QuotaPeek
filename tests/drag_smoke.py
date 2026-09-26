@@ -9,6 +9,7 @@ import time
 
 from pywinauto import Application, mouse
 from pywinauto.timings import wait_until
+from PIL import ImageGrab
 
 
 parser = argparse.ArgumentParser()
@@ -38,9 +39,23 @@ u.CloseDesktop.argtypes = [wt.HANDLE]
 u.GetCursorPos.argtypes = [ctypes.POINTER(wt.POINT)]
 u.SetCursorPos.argtypes = [ctypes.c_int, ctypes.c_int]
 u.mouse_event.argtypes = [wt.DWORD, wt.DWORD, wt.DWORD, wt.DWORD, ctypes.c_size_t]
+u.GetWindowThreadProcessId.argtypes = [wt.HWND, ctypes.POINTER(wt.DWORD)]
+u.GetWindowThreadProcessId.restype = wt.DWORD
+
+
+class GuiInfo(ctypes.Structure):
+    _fields_ = [("size", wt.DWORD), ("flags", wt.DWORD), ("active", wt.HWND),
+                ("focus", wt.HWND), ("capture", wt.HWND), ("menu", wt.HWND),
+                ("move", wt.HWND), ("caret", wt.HWND), ("rect", wt.RECT)]
+
+
+u.GetGUIThreadInfo.argtypes = [wt.DWORD, ctypes.POINTER(GuiInfo)]
+u.GetAsyncKeyState.argtypes = [ctypes.c_int]
+u.GetAsyncKeyState.restype = ctypes.c_short
 results = {"exe": str(Path(args.exe).resolve()), "checks": [], "physical": "not-run"}
 proc = None
 widget = None
+mouse_down = False
 original_cursor = wt.POINT()
 u.GetCursorPos(ctypes.byref(original_cursor))
 
@@ -59,6 +74,45 @@ def bounds():
 
 def parked():
     u.SetCursorPos(20, 20)
+
+
+def captured():
+    info = GuiInfo()
+    info.size = ctypes.sizeof(info)
+    thread = u.GetWindowThreadProcessId(widget.handle, None)
+    return bool(u.GetGUIThreadInfo(thread, ctypes.byref(info)) and info.capture == widget.handle)
+
+
+class InputInterference(RuntimeError):
+    pass
+
+
+def ensure_pointer(point, held=False):
+    actual = wt.POINT()
+    u.GetCursorPos(ctypes.byref(actual))
+    if (abs(actual.x - point[0]) > 2 or abs(actual.y - point[1]) > 2
+            or held and not u.GetAsyncKeyState(1) & 0x8000):
+        raise InputInterference("External mouse input interrupted the test; run on an idle desktop.")
+
+
+def press(point):
+    global mouse_down
+    u.SetCursorPos(*point)
+    u.mouse_event(0x2, 0, 0, 0, 0)
+    mouse_down = True
+    wait_until(3, .025, captured)
+    ensure_pointer(point, held=True)
+
+
+def release():
+    global mouse_down
+    if mouse_down:
+        u.mouse_event(0x4, 0, 0, 0, 0)
+        mouse_down = False
+
+
+def screenshot(path):
+    ImageGrab.grab(bbox=tuple(bounds()), include_layered_windows=True).save(path)
 
 
 def launch():
@@ -84,28 +138,31 @@ def close():
 def drag(name, point, delta=(100, 60), hold=.55, steps=8):
     before = bounds()
     foreground = u.GetForegroundWindow()
-    # Send the press immediately: pywinauto's double-click delay otherwise lets
-    # the capsule expand on hover before the physical button goes down.
-    u.SetCursorPos(*point)
-    u.mouse_event(0x2, 0, 0, 0, 0)
+    # Send the press immediately instead of pywinauto's double-click delay.
+    press(point)
     try:
-        # Holding beyond the 350 ms hover delay must not resize the drag target.
+        # Holding alone must not expand or resize the drag target.
         time.sleep(hold)
+        ensure_pointer(point, held=True)
         held = bounds()
         held_cursor = wt.POINT()
         u.GetCursorPos(ctypes.byref(held_cursor))
         for step in range(1, steps + 1):
-            u.SetCursorPos(point[0] + delta[0] * step // steps, point[1] + delta[1] * step // steps)
+            target = (point[0] + delta[0] * step // steps, point[1] + delta[1] * step // steps)
+            u.SetCursorPos(*target)
             time.sleep(.03)
+            ensure_pointer(target, held=True)
+        wait_until(3, .025, lambda: abs(bounds()[0] - before[0] - delta[0]) <= 8
+                   and abs(bounds()[1] - before[1] - delta[1]) <= 8)
         during = bounds()
     finally:
-        u.mouse_event(0x4, 0, 0, 0, 0)
+        release()
     time.sleep(.45)
     after = bounds()
     check(name, held[2] - held[0] == before[2] - before[0]
           and held[3] - held[1] == before[3] - before[1]
           # Allow a few physical pixels of concurrent pointer movement while
-          # Windows delivers the press; a missing drag still fails by 50+ px.
+          # Windows delivers the press; a stationary window still fails.
           and abs(after[0] - before[0] - delta[0]) <= 8
           and abs(after[1] - before[1] - delta[1]) <= 8
           and after[2] - after[0] == before[2] - before[0]
@@ -149,11 +206,10 @@ try:
     # A small click jitter is still a click, and must not shift the saved anchor.
     before = bounds()
     point = widget.child_window(auto_id="CapsuleText").rectangle().mid_point()
-    u.SetCursorPos(point.x, point.y)
-    u.mouse_event(0x2, 0, 0, 0, 0)
+    press((point.x, point.y))
     time.sleep(.05)
     u.SetCursorPos(point.x + 1, point.y + 1)
-    u.mouse_event(0x4, 0, 0, 0, 0)
+    release()
     wait_until(5, .05, lambda: widget.rectangle().width() > capsule_width)
     parked()
     time.sleep(1)
@@ -177,17 +233,30 @@ try:
     wait_until(5, .05, lambda: widget.rectangle().width() == capsule_width)
     check("collapse button still clicks", True)
 
-    # Existing idle-hover behavior must remain available after a drag.
+    # Hovering never expands; clicking even a non-button area of the capsule does.
     point = widget.child_window(auto_id="CapsuleText").rectangle().mid_point()
     mouse.move(coords=(point.x, point.y))
-    wait_until(5, .05, lambda: widget.rectangle().width() > capsule_width)
-    check("idle hover still expands", True)
+    for _ in range(10):
+        time.sleep(.1)
+        ensure_pointer((point.x, point.y))
+    check("idle hover keeps capsule collapsed", widget.rectangle().width() == capsule_width)
     parked()
+    time.sleep(.9)
+    check("leaving capsule keeps it collapsed", widget.rectangle().width() == capsule_width)
+    r = widget.rectangle()
+    press((r.left + round(30 * scale), r.top + round(32 * scale)))
+    time.sleep(.06)
+    release()
+    wait_until(5, .05, lambda: widget.rectangle().width() > capsule_width)
+    parked()
+    time.sleep(1)
+    check("clicking capsule dot expands and leaving keeps cards open",
+          widget.rectangle().width() > capsule_width)
+    widget.child_window(auto_id="CollapseButton", control_type="Button").invoke()
     wait_until(5, .05, lambda: widget.rectangle().width() == capsule_width)
-    check("temporary hover expansion still collapses on leave", True)
 
     position = bounds()
-    widget.capture_as_image().save(artifact / "capsule.png")
+    screenshot(artifact / "capsule.png")
     close()
     launch()
     check("dragged position and collapsed state survive restart", bounds() == position,
@@ -198,20 +267,25 @@ except Exception as error:
     results["result"] = "failed"
     if results["physical"] == "running":
         results["physical"] = "failed"
+    if isinstance(error, InputInterference):
+        results["result"] = "blocked"
+        results["physical"] = "environment-blocked: external mouse input"
     results["error"] = str(error)
     if widget is not None:
         try:
-            widget.capture_as_image().save(artifact / "failure.png")
+            screenshot(artifact / "failure.png")
         except Exception:
             pass
     raise
 finally:
+    release()
     try:
         close()
     except Exception:
         if proc is not None and proc.poll() is None:
             proc.kill()  # Only the isolated process launched by this test.
             proc.wait(timeout=5)
-    mouse.move(coords=(original_cursor.x, original_cursor.y))
+    if results.get("result") != "blocked":
+        mouse.move(coords=(original_cursor.x, original_cursor.y))
     (artifact / "result.json").write_text(json.dumps(results, ensure_ascii=False, indent=2), encoding="utf-8")
     print("ARTIFACTS", artifact, flush=True)

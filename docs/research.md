@@ -56,4 +56,5 @@ SQLite 保存规范化快照与阈值状态；UI 只拿规范化模型。失败�
 
 - [WPF ButtonBase 源码](https://github.com/dotnet/wpf/blob/main/src/Microsoft.DotNet.Wpf/src/PresentationFramework/System/Windows/Controls/Primitives/ButtonBase.cs)：按钮会处理鼠标按下并捕获鼠标。原胶囊的余额区域是展开按钮，只有右侧文字图标绑定拖动；直接拖余额不会移动窗口。改为外层 Preview 事件统一处理，展开按钮的普通单击仍保留，设置、刷新、收起按钮和滚动条排除在拖动区域之外。
 - [Eto 的 WPF 窗口实现](https://github.com/picoe/Eto/blob/develop/src/Eto.Wpf/Forms/WpfWindow.cs)、[Issue #1903](https://github.com/picoe/Eto/issues/1903)、[PR #2108](https://github.com/picoe/Eto/pull/2108)：参考交互控件与窗口拖动分离、鼠标捕获需要可靠清理的经验。QuotaPeek 保留原有不激活窗口的像素定位方式；按下、拖动、松开及捕获丢失由同一外层元素处理，不引入框架依赖。
-- 使用 Windows 的最小拖动距离并按窗口 DPI 换算到物理像素，区分单击抖动和真正拖动。按住时暂停悬停计时器，防止胶囊在拖动中变成大卡片；松手后不立即重新触发展开，移出再悬停仍可预览。
+- 使用 Windows 的最小拖动距离并按窗口 DPI 换算到物理像素，区分单击抖动和真正拖动。最终交互按用户要求移除悬停展开及移开后自动收起：悬停保持原状，单击胶囊展开，按住移动则拖动且不触发展开。松开前排队的移动事件可能看到已释放的按钮状态，因此由 MouseUp / LostMouseCapture 完成手势清理，避免丢失轻微抖动后的单击。
+- 首次 Loaded 中的宽度调整可能被 Show 的初始原生尺寸覆盖。首次 ContentRendered 再应用展开 / 收起尺寸，随后定位并保存；避免收起状态重启后回到展开宽度，也避免初始化中覆盖已保存的位置。

@@ -20,9 +20,7 @@ public partial class MainWindow : Window
     private readonly App app;
     private readonly Forms.NotifyIcon tray;
     private readonly DispatcherTimer timer = new() { Interval = TimeSpan.FromSeconds(15) };
-    private readonly DispatcherTimer hover = new() { Interval = TimeSpan.FromMilliseconds(350) };
-    private readonly DispatcherTimer collapse = new() { Interval = TimeSpan.FromMilliseconds(850) };
-    private bool expanded = true, hoverExpanded, locked, userHidden, fullscreenHidden, sessionLocked, sleeping, exiting;
+    private bool expanded = true, locked, userHidden, fullscreenHidden, sessionLocked, sleeping, exiting;
     private (int X, int Y)? dragFrom;
     private (double X, double Y) dragWindow;
     private bool dragMoved, dragExpands;
@@ -83,8 +81,6 @@ public partial class MainWindow : Window
                 Render();
             }
         };
-        hover.Tick += (_, _) => { hover.Stop(); if (dragFrom is null && !locked && IsMouseOver && !expanded) { hoverExpanded = true; SetExpanded(true, false); } };
-        collapse.Tick += (_, _) => { collapse.Stop(); if (dragFrom is null && !IsMouseOver && hoverExpanded) { SetExpanded(false, false); hoverExpanded = false; } };
         SystemEvents.SessionSwitch += SessionSwitch;
         SystemEvents.PowerModeChanged += PowerChanged;
         SystemEvents.DisplaySettingsChanged += DisplayChanged;
@@ -137,7 +133,6 @@ public partial class MainWindow : Window
         if (positioned) WindowNative.ResizeAnchored(this, Resize); else Resize();
         if (remember)
         {
-            hoverExpanded = false;
             app.Monitor.Settings.StartExpanded = value;
             SavePosition();
         }
@@ -146,7 +141,7 @@ public partial class MainWindow : Window
     {
         FinishDrag();
         locked = !locked;
-        if (locked) { hover.Stop(); collapse.Stop(); SetExpanded(false, false); }
+        if (locked) SetExpanded(false, false);
         WindowNative.Configure(this, locked);
         Render();
     }
@@ -189,9 +184,8 @@ public partial class MainWindow : Window
         if (locked || dragFrom is not null) return;
         var control = FindDragControl(e.OriginalSource as DependencyObject);
         if (control is not null && control != ExpandButton) return;
-        hover.Stop(); collapse.Stop();
         dragFrom = WindowNative.Cursor(); dragWindow = WindowNative.PixelPosition(this);
-        dragMoved = false; dragExpands = control == ExpandButton;
+        dragMoved = false; dragExpands = !expanded;
         // Capture on the stable outer surface before ButtonBase consumes the press.
         if (!Outer.CaptureMouse()) { FinishDrag(); return; }
         e.Handled = true;
@@ -223,7 +217,7 @@ public partial class MainWindow : Window
     private void DragEnd(object sender, MouseButtonEventArgs e)
     {
         if (dragFrom is null) return;
-        var expandOnClick = dragExpands && !dragMoved && ExpandButton.InputHitTest(e.GetPosition(ExpandButton)) is not null;
+        var expandOnClick = dragExpands && !dragMoved && Outer.InputHitTest(e.GetPosition(Outer)) is not null;
         e.Handled = true;
         FinishDrag();
         if (expandOnClick) SetExpanded(true);
@@ -239,10 +233,7 @@ public partial class MainWindow : Window
         dragFrom = null; dragMoved = false; dragExpands = false;
         if (Outer.IsMouseCaptured) Outer.ReleaseMouseCapture();
         if (moved) SavePosition();
-        if (hoverExpanded && !IsMouseOver) collapse.Start();
     }
-    private void Root_MouseEnter(object sender, MouseEventArgs e) { collapse.Stop(); if (dragFrom is null && !expanded && !locked) hover.Start(); }
-    private void Root_MouseLeave(object sender, MouseEventArgs e) { hover.Stop(); if (dragFrom is null && hoverExpanded) collapse.Start(); }
     private void Expand_Click(object sender, RoutedEventArgs e) => SetExpanded(true);
     private void Collapse_Click(object sender, RoutedEventArgs e) => SetExpanded(false);
     private void Lock_Click(object sender, RoutedEventArgs e) => ToggleLock();
@@ -253,7 +244,7 @@ public partial class MainWindow : Window
     private void OnClosing(object? sender, CancelEventArgs e)
     {
         FinishDrag();
-        SavePosition(); timer.Stop(); hover.Stop(); collapse.Stop(); tray.Visible = false; tray.Dispose();
+        SavePosition(); timer.Stop(); tray.Visible = false; tray.Dispose();
         WindowNative.Unregister(this);
         SystemEvents.SessionSwitch -= SessionSwitch; SystemEvents.PowerModeChanged -= PowerChanged; SystemEvents.DisplaySettingsChanged -= DisplayChanged;
         app.Monitor.Changed -= Render; app.Monitor.LowQuota -= NotifyLow;

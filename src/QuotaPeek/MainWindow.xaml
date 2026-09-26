@@ -2,12 +2,11 @@
         Title="QuotaPeek" Width="370" SizeToContent="Height" WindowStyle="None" AllowsTransparency="True" Background="Transparent" ResizeMode="NoResize"
         Topmost="True" ShowInTaskbar="False" ShowActivated="False" UseLayoutRounding="True" FontFamily="Segoe UI, Microsoft YaHei UI" FontSize="12" Foreground="{StaticResource Text}">
   <Border x:Name="Outer" Margin="8" CornerRadius="20" Background="{StaticResource Canvas}" BorderBrush="{StaticResource Line}" BorderThickness="1"
-          MouseEnter="Root_MouseEnter" MouseLeave="Root_MouseLeave"
           PreviewMouseLeftButtonDown="DragStart" PreviewMouseMove="DragMove" PreviewMouseLeftButtonUp="DragEnd" LostMouseCapture="DragLostCapture">
     <Border.Effect><DropShadowEffect Color="#000000" BlurRadius="12" ShadowDepth="2" Opacity="0.26"/></Border.Effect>
     <Border.ContextMenu><ContextMenu><MenuItem Header="设置" Click="Settings_Click"/><MenuItem Header="刷新" Click="Refresh_Click"/><MenuItem Header="锁定 / 解锁鼠标穿透" Click="Lock_Click"/><Separator/><MenuItem Header="退出 QuotaPeek" Click="Exit_Click"/></ContextMenu></Border.ContextMenu>
     <Grid>
-      <Grid x:Name="Capsule" Visibility="Collapsed" Height="48" Margin="12,0,10,0" Background="Transparent" ToolTip="按住拖动 · 单击文字展开">
+      <Grid x:Name="Capsule" Visibility="Collapsed" Height="48" Margin="12,0,10,0" Background="Transparent" ToolTip="单击展开 · 按住拖动">
         <Grid.ColumnDefinitions><ColumnDefinition Width="20"/><ColumnDefinition Width="*"/><ColumnDefinition Width="26"/></Grid.ColumnDefinitions>
         <Ellipse x:Name="CapsuleDot" Width="7" Height="7" Fill="{StaticResource Mint}"/>
         <Button x:Name="ExpandButton" Grid.Column="1" Background="Transparent" Padding="3,0" Click="Expand_Click" AutomationProperties.Name="展开额度卡片">
